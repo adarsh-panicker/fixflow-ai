@@ -1,6 +1,78 @@
 # FixFlow AI — Inventory-Aware IT Diagnostics Workbench
 
+<div align="center">
+  <img src="public/logo.png" alt="FixFlow AI Logo" width="100" />
+  <h3>FixFlow AI — Inventory-Grounded Autonomous & Guided IT Triage Platform</h3>
+  <p><strong>Copyrighted © 2026 Adarsh Panicker. All rights reserved.</strong></p>
+</div>
+
 FixFlow AI is an inventory-aware, AI-assisted IT troubleshooting workbench built for SysAdmins, Tier 1–3 support engineers, and SREs. It pairs structured deterministic troubleshooting decision trees with bounded AI orchestration (Google Gemini API / local deterministic fallback) grounded in real registered IT assets and infrastructure dependencies.
+
+---
+
+## 📸 Screenshots & Visual Tour
+
+<div align="center">
+  <h3>1. Operations Console Login & Local Authentication</h3>
+  <p><em>Clean, centered authentication shell with local SQLite credential storage, zero external email dependency, and quick demo role access.</em></p>
+  <img src="docs/screenshots/01-login-screen.png" alt="FixFlow AI Login Screen" width="90%" />
+</div>
+
+<br/>
+
+<div align="center">
+  <h3>2. IT Operations Dashboard</h3>
+  <p><em>Real-time active incident queue, health metrics, registered enterprise assets, and quick triage launchpads.</em></p>
+  <img src="docs/screenshots/02-dashboard-overview.png" alt="FixFlow AI Dashboard Overview" width="90%" />
+</div>
+
+<br/>
+
+<div align="center">
+  <h3>3. Infrastructure Dependency Map (CMDB Topology)</h3>
+  <p><em>Interactive multi-tier topology graph showing endpoints, network devices, compute, and core infra with drag-to-connect handles, '+ Add Link' dialogs, and AI-suggested link confirmation.</em></p>
+  <img src="docs/screenshots/03-dependency-map.png" alt="Infrastructure Dependency Map" width="90%" />
+</div>
+
+<br/>
+
+<div align="center">
+  <h3>4. Dual Diagnostic Workbench (Guided Mode)</h3>
+  <p><em>Adaptive step-by-step triage runner with live ICMP availability telemetry, copyable read-only commands, and Bayesian hypothesis weighting.</em></p>
+  <img src="docs/screenshots/04-diagnostic-workbench.png" alt="Diagnostic Workbench" width="90%" />
+</div>
+
+<br/>
+
+<div align="center">
+  <h3>5. ICMP Infrastructure Availability Monitoring</h3>
+  <p><em>Real-time network availability, latency, and packet loss monitoring with consecutive failure threshold detection and auto-incident generation.</em></p>
+  <img src="docs/screenshots/05-infrastructure-monitoring.png" alt="Infrastructure Availability Monitoring" width="90%" />
+</div>
+
+<br/>
+
+<div align="center">
+  <h3>6. Air-Gapped Error & Solution Knowledge Base</h3>
+  <p><em>Local-first verified solutions repository with instant error code lookup (e.g., NXDOMAIN, 0x80070035), operating system compatibility matching, and zero-call resolution.</em></p>
+  <img src="docs/screenshots/06-knowledge-base.png" alt="Error and Solution Knowledge Base" width="90%" />
+</div>
+
+<br/>
+
+<div align="center">
+  <h3>7. Workspace Members & Role-Based Access Control (RBAC)</h3>
+  <p><em>Multi-user team management with discrete roles (Owner, Admin, IT Support, Viewer), local single-use invitation tokens, and immutable audit logs.</em></p>
+  <img src="docs/screenshots/07-team-rbac-members.png" alt="Workspace Members and Access Control" width="90%" />
+</div>
+
+<br/>
+
+<div align="center">
+  <h3>8. Enterprise Asset Inventory (CMDB)</h3>
+  <p><em>Detailed IT asset tracking with IP addresses, hostnames, operating systems, criticality tiers, and CSV/JSON bulk import capabilities.</em></p>
+  <img src="docs/screenshots/08-asset-inventory.png" alt="Asset Inventory Catalog" width="90%" />
+</div>
 
 ---
 
