@@ -1,158 +1,147 @@
-# FixFlow AI — Implementation Plan & MVP Roadmap
+# FixFlow AI — Implementation Plan & Milestone Roadmap
 
-**Version:** 1.0.0  
-**Status:** Approved for Implementation  
-**Target:** Hackathon MVP & Production-Ready Diagnostic Workbench  
-**Author:** Lead Product Engineer  
+## 1. Development Principles & Solo Scope Discipline
+
+To ensure a production-grade, fully functional application within the solo hackathon timeline, the following operational rules are observed:
+1. **Vertical Slice Development**: Each phase delivers fully working, end-to-end functionality backed by typed contracts and automated tests before moving to the next.
+2. **Zero Synthetic / Mock Vanity Controls**: Every button, input, toggle, and link performs a real domain action or persists state.
+3. **Deterministic First, AI Enhanced**: The core diagnostic engine, asset registry, and scenario models work 100% offline without API keys. Gemini adds structured generative intelligence when configured.
+4. **Relational Database Grounding**: All state (assets, dependencies, incidents, evidence, reports) persists in SQLite via Prisma.
 
 ---
 
-## 1. Overview & Phased Roadmap
-
-This plan outlines the ten discrete phases required to build FixFlow AI from an empty directory to a fully functional, production-grade IT troubleshooting workbench. Each phase is self-contained with explicit acceptance criteria.
+## 2. Phase-by-Phase Implementation Roadmap
 
 ```mermaid
 flowchart LR
-    P1[Phase 1: Setup & Design] --> P2[Phase 2: Schemas & DB]
-    P2 --> P3[Phase 3: Tools & Scenario]
-    P3 --> P4[Phase 4: Shared Engine & API]
-    P4 --> P5[Phase 5: Layout & Intake]
-    P5 --> P6[Phase 6: Guided Mode]
-    P6 --> P7[Phase 7: Agent Mode]
-    P7 --> P8[Phase 8: Tree & Evidence]
-    P8 --> P9[Phase 9: Report & PDF]
-    P9 --> P10[Phase 10: Verification & Polish]
+    Phase1["Phase 1:\nDB & Models\n(Prisma / SQLite / Seed)"] --> Phase2["Phase 2:\nCore Engine &\nSafety Allowlist"]
+    Phase2 --> Phase3["Phase 3:\nAsset Inventory &\nDependency Map"]
+    Phase3 --> Phase4["Phase 4:\nServer AI Adapter\n& Fallbacks"]
+    Phase4 --> Phase5["Phase 5:\nDiagnostic Workbench\n(Guided & Agent)"]
+    Phase5 --> Phase6["Phase 6:\nReports, PDF &\nIncident History"]
+    Phase6 --> Phase7["Phase 7:\nEnd-to-End Audit\n& Release Package"]
 ```
 
 ---
 
-## 2. Phase-by-Phase Breakdown
-
-### Phase 1: Project Setup, Tooling & Design System Foundation
-- Initialize Next.js 15+ App Router project with TypeScript and Tailwind CSS.
-- Configure path aliases (`@/*`), strict TypeScript compiler options, and ESLint.
-- Install core UI and utility dependencies: `lucide-react`, `clsx`, `tailwind-merge`, `dexie`, `zod`.
-- Build the dark-mode IT Operations design system:
-  - Color palette: Slate-950/Zinc-900 background, Cyan/Emerald accents, Amber warnings, Rose errors.
-  - Reusable base UI primitives: `Button`, `Card`, `Badge`, `Tabs`, `Modal`, `Tooltip`, `CodeBlock`.
-- **Acceptance Criteria:**
-  - Next.js dev server starts with zero errors.
-  - Dark-mode IT console styling is active with accessible contrast ratios.
-
-### Phase 2: Domain Schemas, Type Definitions & Storage Layer
-- Define all core TypeScript interfaces in `src/types/incident.ts`:
-  - `Incident`, `ExperienceLevel`, `IncidentCategory`, `Hypothesis`, `EvidenceItem`, `InvestigationNode`, `GuidedStep`, `AgentExecutionPlan`, `ToolDefinition`, `IncidentReport`.
-- Implement compile-time and runtime Zod schemas in `src/lib/schemas/incident.ts`.
-- Build the local persistence layer in `src/lib/db/index.ts` using Dexie.js (IndexedDB):
-  - Stores: `incidents`, `evidence`, `auditLogs`.
-  - CRUD helper methods: `saveIncident`, `getIncident`, `listRecentIncidents`, `deleteIncident`, `exportJSON`, `importJSON`.
-- **Acceptance Criteria:**
-  - Full CRUD operations tested in IndexedDB.
-  - Incident schemas parse and validate valid and invalid inputs predictably.
-
-### Phase 3: Tool Registry, Safe Diagnostic Simulators & Deterministic Scenario Engine
-- Implement `src/lib/tools/registry.ts`:
-  - Whitelist of registered read-only diagnostic tools:
-    - `dns_lookup_simulator`: Resolves A, AAAA, CNAME, PTR, MX records.
-    - `mtu_ping_sweep`: Simulates packet fragmentation sweeps with DF bit.
-    - `port_reachability_probe`: Simulates TCP/UDP SYN/ACK responses.
-    - `route_table_analyzer`: Parses default gateways, CIDR routing table collisions.
-    - `windows_event_log_filter`: Parses simulated Event IDs (e.g. 1000, 7031, 4625).
-- Implement command helper generator:
-  - Formats safe CLI commands (PowerShell, CMD, Bash) with flag explanations, pre-flight checks, and rollback commands.
-- Implement the deterministic sample scenario data in `src/lib/deterministic/sampleScenario.ts`:
-  - Split-brain DNS & MTU black hole incident with pre-calculated hypothesis transitions, evidence items, and tree branches.
-- **Acceptance Criteria:**
-  - Tool executions run in memory with zero OS shell calls.
-  - Deterministic scenario data is self-contained and loads instantaneously.
-
-### Phase 4: Shared Diagnostic Engine & API Route Handlers
-- Implement Bayesian-style hypothesis scoring and confidence engine in `src/lib/engine/scorer.ts`.
-- Build Server API Route Handlers:
-  - `POST /api/diagnose/guided`: Evaluates evidence and selects the next highest-information-gain test.
-  - `POST /api/diagnose/agent`: Formulates a bounded 4–6 step plan and evaluates sequential execution.
-  - `POST /api/tools/execute`: Validates tool args via Zod and returns structured tool results.
-- Implement LLM Gateway with Structured Outputs:
-  - Provider integration with strict JSON schemas.
-  - Graceful fallback to deterministic/local engine when no API keys are present.
-- **Acceptance Criteria:**
-  - Both `/api/diagnose/guided` and `/api/diagnose/agent` return strictly validated JSON matching schemas.
-  - Application works seamlessly without an API key configured.
-
-### Phase 5: Incident Intake & Workbench Layout
-- Build Incident Intake Page (`src/app/incident/new/page.tsx`):
-  - Quick Form with Category (12 domains), Experience Level (Beginner / Intermediate / Advanced), Severity, Blast Radius.
-  - Raw Symptom Log Paste tab with auto-parsing.
-  - "Launch Deterministic Demo Scenario" one-click button.
-- Build Tri-Pane Workbench Container (`src/components/workbench/`):
-  - **Left Panel (Context & Evidence Locker):** Metadata, environment stats, live evidence list with impact badges.
-  - **Center Panel (Execution):** Mode switcher (Guided vs Agent), active diagnostic cards.
-  - **Right Panel (Knowledge & Tree):** Interactive Investigation Tree and Hypothesis Matrix.
-- **Acceptance Criteria:**
-  - Responsive tri-pane layout with collapsible side panels.
-  - Intake creates new incident and immediately navigates to workbench.
-
-### Phase 6: Guided Mode UI & Adaptive Question Runner
-- Implement `src/components/guided/GuidedStepCard.tsx`:
-  - Step objective and explanation tailored to selected experience level.
-  - Suggested command generator with 1-click copy and pre-flight notes.
-  - Response controls: `Yes (Observed)`, `No (Not Observed)`, `Inconclusive / Unknown`, and `Paste Terminal Output`.
-- Terminal output parser modal:
-  - Auto-extracts IPs, status codes, and error messages from user-pasted terminal sessions.
-- Real-time hypothesis confidence updates and animation triggers.
-- **Acceptance Criteria:**
-  - User can complete an adaptive step in <3 clicks.
-  - Pasted terminal output correctly alters hypothesis confidence.
-
-### Phase 7: Agent Mode UI & Bounded Multi-Step Execution Loop
-- Implement `src/components/agent/AgentPlannerView.tsx`:
-  - Multi-step timeline visualizing planned steps (e.g., Step 2 of 4).
-  - Safety controls: `Play All`, `Next Step (Single-Step)`, `Pause`, `Cancel`.
-  - Step limit badge: `Bounded: Max 6 Steps`.
-- Collapsible step log viewer showing tool invocations, stdout telemetry, and intermediate reasoning.
-- Safe interrupt handling and manual hypothesis override controls.
-- **Acceptance Criteria:**
-  - Agent cannot exceed configured step limit.
-  - User can pause or advance step-by-step.
-
-### Phase 8: Interactive Investigation Tree & Evidence Locker
-- Implement `src/components/tree/InvestigationTree.tsx`:
-  - Interactive SVG/Canvas hierarchical graph.
-  - Color-coded node statuses: Blue (Symptom), Slate (Tentative Hypothesis), Green (Confirmed Root Cause), Red/Strikethrough (Refuted Hypothesis), Cyan (Diagnostic Test).
-  - Interactive node clicking: reveals associated evidence and justification drawer.
-- Evidence Locker component (`src/components/evidence/EvidenceLocker.tsx`):
-  - Filter by source (CLI, user input, system log).
-  - "Add Manual Evidence" modal for user-discovered artifacts.
-- **Acceptance Criteria:**
-  - Tree updates dynamically as steps are executed.
-  - Clicking any node displays the underlying evidence trail.
-
-### Phase 9: Incident Post-Mortem Report Generator & PDF Export
-- Implement Report View (`src/app/incident/[id]/report/page.tsx`):
-  - Executive Brief, Incident Timeline, 5-Whys Root Cause Analysis, Remediation Commands with Pre-flight/Rollback, and Future Prevention Checklist.
-- Build client-side PDF export bridge:
-  - Dedicated print stylesheet (`@media print`) and automatic PDF trigger button.
-  - High-resolution, branded multi-page document formatting.
-- **Acceptance Criteria:**
-  - One-click PDF download generates an IT Post-Mortem document with no visual artifacts or cutoffs.
-
-### Phase 10: Verification, End-to-End Testing & Polish
-- Full walkthrough of the Deterministic Sample Scenario (Split-Brain DNS & MTU Black Hole).
-- Test all 12 categories, all 3 experience levels, and switching between Guided and Agent modes.
-- Verify IndexedDB persistence: page refresh preserves all tree nodes, evidence, and hypothesis scores.
-- Test edge cases: malformed JSON recovery, empty search states, responsive tablet layouts.
-- **Acceptance Criteria:**
-  - 100% of features in the product spec function reliably without uncaught exceptions.
-  - Zero arbitrary shell commands spawned.
+### Phase 1: Project Foundation, Relational Database & Seed Data
+* **Objectives**:
+  - Initialize Next.js 15 App Router project structure with TypeScript, Tailwind CSS, Lucide icons, and Radix UI primitives.
+  - Configure Prisma ORM with SQLite database (`prisma/schema.prisma`).
+  - Create and run migration creating all relational tables (`Asset`, `AssetDependency`, `Incident`, `IncidentAsset`, `DiagnosticSession`, `DiagnosticStepRecord`, `EvidenceRecord`, `HypothesisRecord`, `PostMortemReport`).
+  - Create comprehensive database seed script (`prisma/seed.ts`) populating:
+    - 15 realistic enterprise IT assets (Domain Controllers, File Servers, Core Switches, Firewalls, VMs, Laptops, Printers).
+    - Infrastructure dependencies (`depends_on`, `hosted_on`, `routes_through`, `authenticates_against`).
+    - The 5 representative scenario models.
+* **Deliverables**:
+  - `prisma/schema.prisma`
+  - `prisma/seed.ts`
+  - `src/lib/db/prisma.ts` (Prisma client singleton)
+  - Passing test verifying database queries and foreign key constraints.
 
 ---
 
-## 3. Technical Risks & Mitigation Strategies
+### Phase 2: Diagnostic Domain Engine & Tool Safety Allowlist
+* **Objectives**:
+  - Implement deterministic diagnostic state machine (`src/lib/engine/engine.ts`).
+  - Implement scenario registry linking incidents to predefined test trees (`src/lib/engine/scenarios.ts`).
+  - Build the Evidence Model: recording test outcomes (`passed`, `failed`, `inconclusive`, `not_tested`), updating hypothesis confidence, and isolating branches.
+  - Implement L1–L7 structured fallback generator for unknown incidents.
+  - Implement strict tool allowlist and command validation (`src/lib/safety/validator.ts`) blocking shell injection and dangerous binaries.
+* **Deliverables**:
+  - `src/lib/engine/engine.ts`
+  - `src/lib/engine/scenarios.ts`
+  - `src/lib/safety/validator.ts`
+  - Unit tests for state transitions, branch switching, and safety rejection (`npm test`).
+
+---
+
+### Phase 3: Asset Inventory & Dependency Map
+* **Objectives**:
+  - Implement Asset Inventory UI (`/assets`) with table search, filtering by type/status/criticality, and detail drawer.
+  - Implement Asset CRUD modal and CSV bulk import with column matching and error validation.
+  - Build the Infrastructure Dependency Map (`/dependency-map`) using `@xyflow/react` (React Flow):
+    - Custom dark navy asset nodes with status badges and IP badges.
+    - Directional relationship edges.
+    - Mini-map, zoom controls, and active incident filter.
+* **Deliverables**:
+  - `src/app/assets/page.tsx`
+  - `src/app/dependency-map/page.tsx`
+  - `src/components/assets/AssetTable.tsx`, `AssetCsvModal.tsx`
+  - `src/components/dependency-map/TopologyGraph.tsx`
+  - `/api/assets` and `/api/dependencies` route handlers.
+
+---
+
+### Phase 4: Server-Side AI Provider Adapter & Fallbacks
+* **Objectives**:
+  - Implement server-side AI provider adapter (`src/lib/ai/adapter.ts`) integrating Google Gemini API (`@google/genai` or direct REST API via fetch with `gemini-2.5-flash`).
+  - Implement four structured AI capabilities with Zod schema contracts:
+    1. `parseIncident`: Convert free-text complaints into structured tickets and match assets.
+    2. `explainStep`: Generate technical context, command flags, and expected outputs.
+    3. `synthesizeEvidence`: Summarize supporting vs refuting telemetry without fabricating unobserved facts.
+    4. `generateReport`: Draft post-mortem executive summary and 5-Whys.
+  - Build the zero-key deterministic fallback engine (`src/lib/ai/fallback.ts`) ensuring 100% functionality when credentials are not configured.
+* **Deliverables**:
+  - `src/lib/ai/adapter.ts`
+  - `src/lib/ai/fallback.ts`
+  - `src/app/api/ai/*` route handlers.
+  - AI resilience unit tests with mocked responses, malformed JSON, and timeouts.
+
+---
+
+### Phase 5: Diagnostic Workbench (Guided & Agent Modes)
+* **Objectives**:
+  - Build unified Diagnostic Workbench (`/incident/[id]`):
+    - Center Console tab switcher: `Diagnostic Runner` | `Decision Tree` | `Timeline`.
+    - Right Context Rail: `Associated Assets & Upstream Graph` | `Evidence Locker` | `Hypothesis Matrix`.
+  - **Guided Mode**: Step-by-step test runner with 1-click command copying, risk badges, and manual result entry (`Passed`, `Failed`, `Inconclusive`, `Not Tested`, and raw output textarea).
+  - **Agent Mode**: Bounded multi-step planner (`/api/agent/plan` and `/api/agent/step`):
+    - Generates up to 6 safe probes per planning cycle.
+    - Enforces 12-step session budget and loop prevention.
+    - Human approval gate for elevated probes.
+* **Deliverables**:
+  - `src/app/incident/[id]/page.tsx`
+  - `src/components/workbench/DiagnosticRunner.tsx`
+  - `src/components/workbench/VisualDecisionTree.tsx`
+  - `src/components/workbench/InvestigationTimeline.tsx`
+  - `src/components/workbench/EvidenceLocker.tsx`
+  - `src/components/workbench/HypothesisMatrix.tsx`
+
+---
+
+### Phase 6: Findings, Incident History & Vector PDF Reports
+* **Objectives**:
+  - Build searchable Incident History archive (`/investigations`) with status badges and multi-criteria filters.
+  - Build Post-Mortem Report page (`/incident/[id]/report`):
+    - Executive summary editor, 5-Whys causal progression, and verified fixes vs unverified recommendations.
+    - Operator sign-off block.
+    - Dedicated `@media print` styling generating clean vector PDFs via `window.print()`.
+  - Build Operations Dashboard (`/`) linking recent incidents, asset health, and quick actions.
+* **Deliverables**:
+  - `src/app/page.tsx` (Operations Dashboard)
+  - `src/app/investigations/page.tsx`
+  - `src/app/incident/[id]/report/page.tsx`
+
+---
+
+### Phase 7: Settings, Release Readiness Audit & Final Polish
+* **Objectives**:
+  - Build Settings page (`/settings`) showing live Gemini API status, model configuration, experience tier defaults, and database reset triggers.
+  - Run full release readiness checklist:
+    - `npx tsc --noEmit` (0 errors)
+    - `npm run lint` (0 warnings)
+    - `npm test` (all unit/integration tests passing)
+    - `npm run build` (production build compiled successfully)
+  - Verify zero committed secrets and complete documentation.
+
+---
+
+## 3. Technical Risks & Scope Mitigation
 
 | Risk | Impact | Mitigation Strategy |
-|---|---|---|
-| **LLM Output Hallucination / Schema Drift** | High | Enforce strict JSON Schema (`responseSchema`). Wrap all parsing in Zod with safe fallback defaults. |
-| **Missing API Keys during Hackathon Review** | Critical | Provide the built-in Deterministic Sample Scenario and local mock engine that runs 100% offline. |
-| **Shell Command Security Vulnerabilities** | Critical | Completely eliminate `child_process` and shell execution. Use client-side safe regex parsers and command review cards. |
-| **Browser Print / PDF Rendering Inconsistencies** | Medium | Use strict `@media print` CSS rules, page-break controls (`break-inside: avoid`), and standardized letter/A4 container layouts. |
-| **IndexedDB Storage Quotas or Private Browsing Limits** | Low | Store lightweight JSON objects and plain text logs; provide easy JSON export/import for backup. |
+| :--- | :--- | :--- |
+| **LLM Provider Latency or Rate Limits** | UI freezing or failed investigations during demo | Server-side 10-second timeout with automatic fallback to deterministic knowledge engine (`provenance: 'deterministic_fallback'`). |
+| **Complex Graph Rendering Overhead** | Sluggish dependency map performance | Use lightweight `@xyflow/react` with custom simplified node cards and limit initial render to 2-hop asset neighborhood. |
+| **Database Setup Friction for Evaluators** | App fails to start on clean machine | Use SQLite via Prisma (`dev.db`). No PostgreSQL server or Docker needed; seeds automatically on setup. |
+| **Scope Creep in Remote Remediation** | Security violations or unfinished execution tools | Strict Version A boundary: FixFlow AI generates copyable commands; the human technician executes them locally. |

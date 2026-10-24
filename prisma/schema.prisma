@@ -1,0 +1,393 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assets        Asset[]
+  relationships AssetRelationship[]
+  incidents     Incident[]
+
+  monitoringAgents      MonitoringAgent[]
+  monitoringConfigs     AssetMonitoringConfiguration[]
+  availabilityStates    AssetAvailabilityState[]
+  checkResults          MonitoringCheckResult[]
+  availabilityIncidents AvailabilityIncident[]
+  monitoringAuditEvents MonitoringAuditEvent[]
+  knowledgeArticles     KnowledgeArticle[]
+}
+
+model Asset {
+  id              String   @id @default(cuid())
+  workspaceId     String   @default("ws-default")
+  assetTag        String
+  name            String
+  assetType       String   // SERVER, WORKSTATION, LAPTOP, ROUTER, SWITCH, FIREWALL, PRINTER, APPLICATION, SERVICE, VIRTUAL_MACHINE, STORAGE, SHARED_FOLDER
+  manufacturer    String?
+  model           String?
+  hostname        String?
+  ipAddress       String?
+  operatingSystem String?
+  location        String?
+  owner           String?
+  notes           String?
+  tags            String?  // Comma-separated or JSON array string
+  criticality     String   @default("TIER_3_MEDIUM") // TIER_1_CRITICAL, TIER_2_HIGH, TIER_3_MEDIUM, TIER_4_LOW
+  status          String   @default("OPERATIONAL")   // OPERATIONAL, DEGRADED, OFFLINE, MAINTENANCE
+  isDemo          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace              Workspace                     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  outgoingRels           AssetRelationship[]           @relation("SourceAsset")
+  incomingRels           AssetRelationship[]           @relation("TargetAsset")
+  incidentLinks          IncidentAsset[]
+  monitoringConfig       AssetMonitoringConfiguration?
+  availabilityState      AssetAvailabilityState?
+  monitoringCheckResults MonitoringCheckResult[]
+  availabilityIncidents  AvailabilityIncident[]
+
+  @@unique([workspaceId, assetTag])
+  @@index([workspaceId])
+  @@index([assetType])
+  @@index([status])
+  @@index([hostname])
+  @@index([ipAddress])
+}
+
+model AssetRelationship {
+  id               String   @id @default(cuid())
+  workspaceId      String   @default("ws-default")
+  sourceAssetId    String
+  targetAssetId    String
+  relationshipType String   @default("DEPENDS_ON")      // DEPENDS_ON, HOSTED_ON, CONNECTED_TO, MANAGED_BY, PROVIDES_SERVICE_TO, SHARES_DATA_WITH
+  provenance       String   @default("USER_CONFIRMED")  // USER_CONFIRMED, AI_SUGGESTED
+  description      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sourceAsset      Asset     @relation("SourceAsset", fields: [sourceAssetId], references: [id], onDelete: Cascade)
+  targetAsset      Asset     @relation("TargetAsset", fields: [targetAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, sourceAssetId, targetAssetId, relationshipType])
+  @@index([workspaceId])
+  @@index([sourceAssetId])
+  @@index([targetAssetId])
+}
+
+model Incident {
+  id               String   @id @default(cuid())
+  workspaceId      String   @default("ws-default")
+  ticketNumber     String
+  title            String
+  rawDescription   String
+  category         String
+  severity         String   @default("P3_MEDIUM") // P1_CRITICAL, P2_HIGH, P3_MEDIUM, P4_LOW
+  status           String   @default("OPEN")      // OPEN, TRIAGED, INVESTIGATING, ROOT_CAUSE_IDENTIFIED, RESOLVED, CLOSED
+  experienceLevel  String   @default("Intermediate")
+  diagnosticMode   String   @default("GUIDED")    // GUIDED, AGENT
+  resolutionNotes  String?
+  appliedArticleId String?
+  articleOutcome   String?            // ACCEPTED, PARTIALLY_USEFUL, UNSUCCESSFUL
+  isDemo           Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  workspace        Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  involvedAssets   IncidentAsset[]
+  session          DiagnosticSession?
+  report           PostMortemReport?
+  appliedArticle   KnowledgeArticle?  @relation(fields: [appliedArticleId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, ticketNumber])
+  @@index([workspaceId])
+  @@index([status])
+  @@index([category])
+  @@index([appliedArticleId])
+}
+
+model IncidentAsset {
+  id         String   @id @default(cuid())
+  incidentId String
+  assetId    String
+  role       String   @default("primary_affected")
+
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, assetId])
+}
+
+model DiagnosticSession {
+  id                 String                 @id @default(cuid())
+  incidentId         String                 @unique
+  scenarioId         String?
+  currentStepIndex   Int                    @default(0)
+  sessionStatus      String                 @default("INVESTIGATING")
+  mode               String                 @default("GUIDED")
+  totalStepsExecuted Int                    @default(0)
+  sessionBudgetMax   Int                    @default(12)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  incident           Incident               @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  stepRecords        DiagnosticStepRecord[]
+  evidence           EvidenceRecord[]
+  hypotheses         HypothesisRecord[]
+}
+
+model DiagnosticStepRecord {
+  id             String   @id @default(cuid())
+  sessionId      String
+  stepId         String
+  title          String
+  toolName       String
+  command        String
+  purpose        String
+  expectedOutput String
+  riskRating     String   @default("SAFE_READ_ONLY")
+  outcome        String   @default("NOT_TESTED")
+  executedAt     DateTime @default(now())
+
+  session        DiagnosticSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model EvidenceRecord {
+  id              String   @id @default(cuid())
+  sessionId       String
+  stepId          String?
+  summary         String
+  rawOutput       String?
+  polarity        String   @default("NEUTRAL") // SUPPORTING, REFUTING, NEUTRAL
+  technicianNotes String?
+  recordedAt      DateTime @default(now())
+
+  session         DiagnosticSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model HypothesisRecord {
+  id              String   @id @default(cuid())
+  sessionId       String
+  title           String
+  description     String
+  confidenceScore Float    @default(0.5)
+  status          String   @default("CANDIDATE") // CANDIDATE, INVESTIGATING, CONFIRMED, REFUTED
+  updatedAt       DateTime @updatedAt
+
+  session         DiagnosticSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model PostMortemReport {
+  id                         String   @id @default(cuid())
+  incidentId                 String   @unique
+  executiveSummary           String
+  confirmedRootCause         String
+  fiveWhys                   String   // Stored as JSON string
+  verifiedFixes              String   // Stored as JSON string
+  unverifiedRecommendations  String   // Stored as JSON string
+  signOffOperator            String   @default("Lead Incident Technician")
+  generatedAt                DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  incident                   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+}
+
+model MonitoringAgent {
+  id             String    @id @default(cuid())
+  workspaceId    String    @default("ws-default")
+  agentKey       String    @unique
+  name           String
+  hostname       String?
+  ipAddress      String?
+  platform       String    @default("win32") // win32, linux, darwin
+  version        String    @default("1.0.0")
+  status         String    @default("ACTIVE") // ACTIVE, REVOKED, DISCONNECTED, PAUSED
+  lastHeartbeat  DateTime?
+  registeredAt   DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  workspace      Workspace                      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assignments    AssetMonitoringConfiguration[]
+  checkResults   MonitoringCheckResult[]
+
+  @@index([workspaceId])
+  @@index([agentKey])
+  @@index([status])
+}
+
+model AssetMonitoringConfiguration {
+  id                       String    @id @default(cuid())
+  workspaceId              String    @default("ws-default")
+  assetId                  String    @unique
+  agentId                  String?
+  enabled                  Boolean   @default(true)
+  targetIp                 String
+  targetHostname           String?
+  addressFamily            String    @default("IPv4") // IPv4, IPv6
+  pollingIntervalSeconds   Int       @default(60)
+  timeoutSeconds           Int       @default(2)
+  packetCount              Int       @default(3)
+  failureThreshold         Int       @default(3)
+  recoveryThreshold        Int       @default(2)
+  latencyWarningMs         Float?
+  packetLossWarningPercent  Float?
+  maintenanceUntil         DateTime?
+  suppressAlerts           Boolean   @default(false)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  workspace                Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  asset                    Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  agent                    MonitoringAgent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([assetId])
+  @@index([agentId])
+  @@index([enabled])
+}
+
+model AssetAvailabilityState {
+  id                     String    @id @default(cuid())
+  workspaceId            String    @default("ws-default")
+  assetId                String    @unique
+  currentStatus          String    @default("UNKNOWN") // ONLINE, DEGRADED, OFFLINE, UNKNOWN, MAINTENANCE, ICMP_UNRESPONSIVE
+  lastObservedState      String?   // SUCCESS, TIMEOUT, UNREACHABLE, ERROR
+  consecutiveFailures    Int       @default(0)
+  consecutiveSuccesses   Int       @default(0)
+  lastCheckTime          DateTime?
+  lastSuccessfulResponse  DateTime?
+  lastStateTransition    DateTime  @default(now())
+  transitionReason       String?
+  latestLatencyMs        Float?
+  latestPacketLoss       Float?
+  isSuppressed           Boolean   @default(false)
+  updatedAt              DateTime  @updatedAt
+
+  workspace              Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  asset                  Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([currentStatus])
+}
+
+model MonitoringCheckResult {
+  id                String   @id @default(cuid())
+  workspaceId       String   @default("ws-default")
+  assetId           String
+  agentId           String?
+  checkedAt         DateTime
+  receivedAt        DateTime @default(now())
+  result            String   // SUCCESS, TIMEOUT, UNREACHABLE, ERROR, UNSUPPORTED
+  averageLatencyMs  Float?
+  minLatencyMs      Float?
+  maxLatencyMs      Float?
+  packetsSent       Int
+  packetsReceived   Int
+  packetLossPercent Float
+  errorCode         String?
+  provider          String   @default("REAL_AGENT") // REAL_AGENT, SIMULATION
+
+  workspace         Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  asset             Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  agent             MonitoringAgent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([assetId])
+  @@index([checkedAt])
+  @@index([agentId])
+  @@index([result])
+}
+
+model AvailabilityIncident {
+  id                    String    @id @default(cuid())
+  workspaceId           String    @default("ws-default")
+  assetId               String
+  title                 String
+  status                String    @default("TRIGGERED") // TRIGGERED, ACKNOWLEDGED, RECOVERED, CLOSED
+  severity              String    @default("P2_HIGH")
+  firstFailureAt        DateTime
+  thresholdCrossedAt    DateTime
+  latestFailureAt       DateTime
+  recoveredAt           DateTime?
+  outageDurationSeconds Int?
+  acknowledgedAt        DateTime?
+  acknowledgedBy        String?
+  failureSummary        String
+  recoverySummary       String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  asset                 Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([assetId])
+  @@index([status])
+}
+
+model MonitoringAuditEvent {
+  id          String   @id @default(cuid())
+  workspaceId String   @default("ws-default")
+  eventType   String   // AGENT_REGISTERED, CONFIG_UPDATED, STATE_TRANSITION, INCIDENT_TRIGGERED, INCIDENT_ACKNOWLEDGED, INCIDENT_RECOVERED, AGENT_HEARTBEAT_TIMEOUT
+  actor       String   @default("SYSTEM") // SYSTEM, AGENT, USER
+  assetId     String?
+  agentId     String?
+  details     String   // JSON string
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+model KnowledgeArticle {
+  id                       String    @id @default(cuid())
+  workspaceId              String    @default("ws-default")
+  title                    String
+  normalizedError          String
+  originalErrorDescription String
+  errorCode                String?
+  category                 String    // INFRASTRUCTURE, NETWORK, HARDWARE, STORAGE, APPLICATION, SECURITY, DATABASE
+  assetType                String?   // SERVER, WORKSTATION, ROUTER, SWITCH, FIREWALL, PRINTER, APPLICATION, etc.
+  operatingSystem          String?
+  productOrService         String?
+  environmentNotes         String?
+  symptoms                 String    // JSON string array of symptoms
+  diagnosticSteps          String    // JSON string array of steps (title, command, purpose, expectedResult, riskRating)
+  verifiedSolution         String    // Structured text/markdown of proven fix
+  preventionNotes          String?
+  status                   String    @default("VERIFIED") // DRAFT, VERIFIED, REJECTED, ARCHIVED
+  confidenceBasis          String    @default("ADMIN_VERIFIED") // USER_CONFIRMED, ADMIN_VERIFIED, IMPORTED
+  successCount             Int       @default(0)
+  failureCount             Int       @default(0)
+  createdBy                String    @default("Lead Incident Technician")
+  verifiedBy               String?
+  lastUsedAt               DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  workspace                Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  linkedIncidents          Incident[]
+
+  @@index([workspaceId])
+  @@index([category])
+  @@index([errorCode])
+  @@index([status])
+  @@index([assetType])
+  @@index([normalizedError])
+}

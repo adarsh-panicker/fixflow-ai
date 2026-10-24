@@ -1,344 +1,176 @@
-# FixFlow AI — Architecture Specification
+# FixFlow AI — System Architecture & Technical Design
 
-**Version:** 1.0.0  
-**Status:** Approved for Implementation  
-**Target:** Hackathon MVP & Production-Ready Diagnostic Workbench  
-**Author:** Lead Product Engineer  
+## 1. High-Level Architecture Overview
 
----
-
-## 1. System Overview & High-Level Architecture
-
-FixFlow AI is architected as an offline-capable, client-first Next.js App Router application with a modular server-side diagnostic API. The application operates in two interchangeable runtime environments:
-1. **Live LLM Connected Mode:** Calls server-side route handlers with strict JSON Schema structured output when an LLM provider key (e.g. Gemini / OpenAI / Anthropic) is configured.
-2. **Deterministic / Offline Mode:** Uses an embedded deterministic rule and knowledge engine that executes the full diagnostic lifecycle offline without external dependencies.
+FixFlow AI is engineered as a modern, unified Next.js App Router application built in TypeScript. It integrates an inventory-aware deterministic diagnostic engine with a bounded, server-side LLM provider adapter (Google Gemini API / local deterministic fallback).
 
 ```mermaid
-flowchart TB
-    subgraph Client["Browser Client (React 19 / Next.js Client Layer)"]
-        UI["Workbench UI (Tri-Pane Layout)"]
-        
-        subgraph StateManagement["Client State & Storage"]
-            SM["Diagnostic State Machine (Zustand/React Context)"]
-            IDB[("IndexedDB (Dexie.js) - Incidents & Evidence")]
-            ExportEngine["PDF & JSON Export Engine"]
-        end
-        
-        subgraph Visuals["Interactive Visualizers"]
-            ITree["Investigation Tree (SVG/Canvas Graph)"]
-            HypMatrix["Hypothesis Matrix & Confidence Bars"]
-            EvLocker["Evidence Locker & Telemetry Viewer"]
-        end
-        
-        UI <--> SM
-        SM <--> IDB
-        SM --> ITree
-        SM --> HypMatrix
-        SM --> EvLocker
-        SM --> ExportEngine
+flowchart TD
+    subgraph Client ["Client Layer (Browser)"]
+        UI_Dash["Operations Dashboard"]
+        UI_Triage["Incident Intake Form"]
+        UI_Workbench["Diagnostic Workbench\n(Runner / Decision Tree / Timeline)"]
+        UI_Inventory["Asset Inventory & CSV Import"]
+        UI_Map["Dependency Map (React Flow)"]
+        UI_Report["Post-Mortem & Vector PDF"]
     end
 
-    subgraph Server["Next.js Server Layer (App Router)"]
-        subgraph Routes["API Route Handlers (/api/diagnose)"]
-            RouteGuided["POST /api/diagnose/guided"]
-            RouteAgent["POST /api/diagnose/agent"]
-            RouteTools["POST /api/tools/execute"]
+    subgraph Server ["Next.js Server Layer (App Router)"]
+        API_Incidents["/api/incidents\n(CRUD & Sessions)"]
+        API_Assets["/api/assets & /api/dependencies\n(Inventory & Topology)"]
+        API_AI["/api/ai/*\n(Parse, Explain, Synthesize)"]
+        API_Agent["/api/agent/*\n(Bounded Plan & Step)"]
+        
+        subgraph CoreEngine ["Core Diagnostic Engine (TypeScript)"]
+            ScenarioReg["Scenario Registry & Tree Model"]
+            StateMachine["Session State Machine"]
+            EvidenceModel["Evidence Locker & Hypothesis Matrix"]
+            SafetySandbox["Tool Allowlist & Safety Validator"]
         end
 
-        subgraph CoreEngine["Shared Diagnostic Engine"]
-            Engine["Diagnostic Core Engine"]
-            ToolReg["Tool Registry (Read-Only / Safe Parsers)"]
-            SafePolicy["Safety Enforcement & Redaction Filter"]
-        end
-
-        subgraph LLMIntegration["LLM Structured Output Gateway"]
-            LLMClient["Gemini / OpenAI Structured Output Client"]
-            ZodSchemas["Zod Output Schema Validators"]
-            DetEngine["Deterministic Fallback & Replay Engine"]
-        end
-
-        Routes --> Engine
-        Engine --> ToolReg
-        Engine --> SafePolicy
-        Engine --> LLMClient
-        Engine --> DetEngine
-        LLMClient --> ZodSchemas
-    end
-
-    SM <--> Routes
-```
-
----
-
-## 2. Technology Stack
-
-| Layer | Technology | Selection Justification |
-|---|---|---|
-| **Framework** | Next.js 15+ (App Router) | Industry standard for modern web applications, combining fast static client rendering with secure server-side API routes for API key isolation. |
-| **Language** | TypeScript 5+ (Strict Mode) | Full type-safety across shared domain models (Incident, Evidence, Hypothesis, Tool Calls). |
-| **UI & Styling** | React 19, Tailwind CSS v4, Lucide React, Radix UI Primitives | Clean, responsive IT workbench design without bulky UI frameworks. High accessibility, dark mode native. |
-| **Data Validation** | Zod 3.x | End-to-end schema validation for user input, tool execution payloads, and LLM structured JSON output. |
-| **Local Persistence** | Dexie.js (IndexedDB wrapper) | Blazing-fast client-side persistence for incidents, evidence logs, and custom telemetry; eliminates server database overhead for solo hackathon scope. |
-| **PDF Generation** | HTML5 Print CSS & `@react-pdf/renderer` / Browser Print Bridge | Generates clean, pixel-perfect, branded IT post-mortem reports with zero external cloud dependencies. |
-| **LLM Gateway** | Server-side Gemini API (`@google/genai`) / Provider Agnostic Adapter | Native support for structured JSON schemas (`responseSchema`), zero prompt injection leakage into the client, and deterministic fallback. |
-
----
-
-## 3. Core Domain Models (TypeScript & Zod Schemas)
-
-All models are defined in `@/types/incident.ts` and validated with matching Zod schemas in `@/lib/schemas/incident.ts`.
-
-### 3.1 Incident Model
-```typescript
-export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
-
-export type IncidentCategory =
-  | 'networking'
-  | 'dns'
-  | 'vpn'
-  | 'firewall'
-  | 'windows'
-  | 'accounts_permissions'
-  | 'applications_services'
-  | 'servers_virtualization'
-  | 'email'
-  | 'backup_storage'
-  | 'printers_peripherals'
-  | 'endpoint_security';
-
-export type IncidentSeverity = 'P1_critical' | 'P2_high' | 'P3_medium' | 'P4_low';
-export type BlastRadius = 'single_user' | 'team_department' | 'branch_site' | 'enterprise_wide';
-export type DiagnosticMode = 'guided' | 'agent';
-
-export interface Incident {
-  id: string;
-  title: string;
-  description: string;
-  rawSymptoms: string;
-  category: IncidentCategory;
-  experienceLevel: ExperienceLevel;
-  severity: IncidentSeverity;
-  blastRadius: BlastRadius;
-  mode: DiagnosticMode;
-  status: 'triage' | 'investigating' | 'root_cause_identified' | 'resolved' | 'closed';
-  createdAt: number;
-  updatedAt: number;
-  hypotheses: Hypothesis[];
-  evidence: EvidenceItem[];
-  investigationNodes: InvestigationNode[];
-  guidedSteps: GuidedStep[];
-  agentExecutionPlan?: AgentExecutionPlan;
-  finalReport?: IncidentReport;
-}
-```
-
-### 3.2 Evidence & Hypothesis Model
-```typescript
-export type HypothesisStatus = 'tentative' | 'likely' | 'confirmed' | 'refuted';
-
-export interface Hypothesis {
-  id: string;
-  title: string;
-  description: string;
-  category: IncidentCategory;
-  confidence: number; // 0.00 to 1.00
-  status: HypothesisStatus;
-  supportingEvidenceIds: string[];
-  refutingEvidenceIds: string[];
-  recommendedTestIds: string[];
-  rootCauseProbability: number;
-}
-
-export type EvidenceSource = 'user_input' | 'cli_output' | 'system_log' | 'tool_execution' | 'manual_observation';
-export type EvidenceImpact = 'supports' | 'refutes' | 'neutral' | 'inconclusive';
-
-export interface EvidenceItem {
-  id: string;
-  timestamp: number;
-  source: EvidenceSource;
-  title: string;
-  rawOutput: string;
-  summary: string;
-  relatedHypothesisId?: string;
-  impact: EvidenceImpact;
-  verified: boolean;
-  metadata?: Record<string, string | number | boolean>;
-}
-```
-
-### 3.3 Investigation Tree Model
-```typescript
-export type NodeType = 'symptom' | 'hypothesis' | 'diagnostic_check' | 'evidence' | 'root_cause' | 'remediation';
-export type NodeStatus = 'active' | 'passed' | 'failed' | 'pending' | 'pruned';
-
-export interface InvestigationNode {
-  id: string;
-  parentId?: string;
-  type: NodeType;
-  label: string;
-  description: string;
-  status: NodeStatus;
-  confidence?: number;
-  evidenceRefId?: string;
-  hypothesisRefId?: string;
-  metadata?: Record<string, unknown>;
-}
-```
-
-### 3.4 Tool Registry & Execution Sandboxing Model
-```typescript
-export type ToolRiskLevel = 'safe_read_only' | 'simulation_only' | 'script_generator';
-
-export interface ToolDefinition {
-  id: string;
-  name: string;
-  description: string;
-  category: IncidentCategory;
-  riskLevel: ToolRiskLevel;
-  applicableOs: ('windows' | 'linux' | 'darwin' | 'all')[];
-  suggestedCommandTemplate?: string;
-  parametersSchema: z.ZodObject<any>;
-  executeSimulated: (args: Record<string, unknown>) => Promise<ToolExecutionResult>;
-}
-
-export interface ToolExecutionResult {
-  toolId: string;
-  success: boolean;
-  stdout: string;
-  stderr?: string;
-  structuredFacts: Record<string, unknown>;
-  parsedEvidence?: {
-    summary: string;
-    impact: EvidenceImpact;
-    targetHypothesisId?: string;
-  };
-}
-```
-
----
-
-## 4. Shared Diagnostic Engine Architecture
-
-Both Guided Mode and Agent Mode run against the exact same core state transitions.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Tech as IT Technician
-    participant UI as Workbench UI
-    participant Core as Shared Diagnostic Engine
-    participant Tool as Tool Registry (Sandboxed)
-    participant LLM as Structured LLM Gateway
-
-    Tech->>UI: Submit Incident Intake (Symptoms + Category + Level)
-    UI->>Core: Initialize Incident & Baseline Hypotheses
-    Core->>LLM: Formulate Initial Hypotheses (JSON Schema)
-    LLM-->>Core: Initial Hypotheses & Ranked Next Tests
-    Core->>UI: Populate Evidence Locker & Investigation Tree
-
-    alt Guided Mode Selected
-        loop For Each Adaptive Step
-            Core->>UI: Present Single Question / Safe Check Card
-            Tech->>UI: Answer (or Paste Terminal Output)
-            UI->>Core: Ingest Evidence
-            Core->>Tool: Parse & Validate Terminal Output
-            Tool-->>Core: Extracted Structured Facts
-            Core->>LLM: Re-score Hypotheses & Generate Next Test
-            LLM-->>Core: Updated Confidences & Next Step
-            Core->>UI: Update Tree & Render Next Step Card
-        end
-    else Agent Mode Selected
-        Core->>LLM: Generate Bounded Multi-Step Investigation Plan (Max 6 Steps)
-        LLM-->>Core: AgentExecutionPlan (Steps 1..N)
-        loop Step Execution (Bounded, Pausable)
-            Core->>UI: Announce Step & Objective
-            Core->>Tool: Execute Read-Only Diagnostic / Simulator
-            Tool-->>Core: ToolExecutionResult
-            Core->>LLM: Evaluate Result vs Hypotheses
-            LLM-->>Core: Revised Step List or Confirmed Root Cause
-            Core->>UI: Stream Step Log & Update Tree
+        subgraph ProviderAdapter ["Server-Side AI Provider Adapter"]
+            GeminiClient["Google Gemini API Client\n(gemini-2.5-flash / structured output)"]
+            FallbackEngine["Deterministic Fallback Engine\n(Zero-Key Air-Gapped Mode)"]
+            ZodValidator["Strict Zod Contract Validation"]
         end
     end
 
-    Core->>UI: Root Cause Verified -> Render Remediation Deck
-    Tech->>UI: Click "Export Incident Post-Mortem"
-    UI->>UI: Generate Branded PDF Report
+    subgraph Storage ["Persistence Layer (Relational DB)"]
+        PrismaORM["Prisma Client"]
+        SQLiteDB[("SQLite Database\n(file:./prisma/dev.db)")]
+    end
+
+    UI_Workbench --> API_Incidents
+    UI_Workbench --> API_Agent
+    UI_Workbench --> API_AI
+    UI_Inventory --> API_Assets
+    UI_Map --> API_Assets
+
+    API_Incidents --> CoreEngine
+    API_Agent --> CoreEngine
+    API_Agent --> ProviderAdapter
+    API_AI --> ProviderAdapter
+    CoreEngine --> PrismaORM
+    API_Assets --> PrismaORM
+    PrismaORM --> SQLiteDB
 ```
 
 ---
 
-## 5. Storage Architecture (Dexie.js / IndexedDB)
+## 2. Layered Architecture & Component Breakdown
 
-To ensure zero setup friction for judges and full data privacy:
-- Database Name: `FixFlowAI_DB` (Version 1).
-- Tables:
-  - `incidents`: Primary key `id`, indexed on `updatedAt`, `category`, `status`.
-  - `evidence`: Primary key `id`, indexed on `incidentId`, `timestamp`.
-  - `auditLogs`: Primary key `id`, indexed on `incidentId`, `action`.
-- Built-in functions:
-  - `saveIncident(incident: Incident): Promise<void>`
-  - `getIncident(id: string): Promise<Incident | undefined>`
-  - `listRecentIncidents(limit?: number): Promise<Incident[]>`
-  - `deleteIncident(id: string): Promise<void>`
-  - `exportIncidentJSON(id: string): Promise<string>`
-  - `importIncidentJSON(jsonStr: string): Promise<string>`
-  - `seedDeterministicSampleIncident(): Promise<string>`
+### 2.1 Frontend Architecture (Presentation Layer)
+- **Framework**: Next.js 15 (App Router, Server Components where advantageous, Client Components for rich interactive workbenches).
+- **Styling & Tokens**: Tailwind CSS configured with enterprise IT palette:
+  - Deep Navy Backgrounds (`bg-[#0B0F17]`, `bg-[#0F172A]`)
+  - Slate Containers & Borders (`bg-[#1E293B]`, `border-[#334155]`)
+  - Restrained Cyan & Sky Accents (`text-cyan-400`, `bg-cyan-500/10`, `border-cyan-500/30`)
+  - Status Indicators: Emerald (Passed/Resolved), Amber (Inconclusive/Warning), Rose (Failed/Critical), Slate (Not Tested/Pending).
+- **Component Primitives**: Radix UI primitives (`@radix-ui/react-*`), Lucide Icons (`lucide-react`), and accessible form controls.
+- **Topology Graph**: `@xyflow/react` (React Flow) rendering custom nodes for infrastructure assets with directional relationship edges (`depends_on`, `hosted_on`, `routes_through`).
+- **Reporting & Print Layout**: High-contrast `@media print` styling converting interactive post-mortems into multi-page vector PDFs via standard browser print.
+
+### 2.2 Server Architecture (Application & API Layer)
+- **Next.js Route Handlers (`src/app/api/...`)**:
+  - `POST /api/incidents`: Incident intake, parsing, and scenario binding.
+  - `GET /api/incidents/[id]`: Retrieve incident session, recorded evidence, and active tree.
+  - `POST /api/incidents/[id]/step`: Record manual test outcome and advance deterministic state machine.
+  - `POST /api/agent/plan`: Generate or adapt a bounded multi-step diagnostic plan.
+  - `POST /api/agent/step`: Evaluate a completed probe and update hypothesis weights.
+  - `POST /api/ai/parse-incident`: Transform free-text complaints into structured schema.
+  - `POST /api/ai/explain-step`: Generate context-aware explanations for tests.
+  - `POST /api/ai/synthesize`: Synthesize supporting vs refuting evidence.
+  - `GET /api/assets` & `POST /api/assets`: Asset management and CSV bulk import.
+  - `GET /api/dependencies`: Fetch infrastructure relationship graph.
+- **Security & Sandboxing**: All API routes validate incoming payloads against Zod schemas. AI credentials (`GEMINI_API_KEY`) remain strictly server-side and are never serialized to client bundles.
+
+### 2.3 Diagnostic Engine Architecture (Domain Layer)
+- **Deterministic State Machine**:
+  - Manages session lifecycle: `intake` $\rightarrow$ `investigating` $\rightarrow$ `root_cause_identified` $\rightarrow$ `resolved` $\rightarrow$ `closed`.
+  - Evaluates recorded test outcomes: `passed`, `failed`, `inconclusive`, `not_tested`.
+  - Calculates confidence adjustments for candidate hypotheses based on evidence polarity.
+- **Unified Engine for Guided & Agent Modes**:
+  - **Guided Mode**: Calls `engine.getNextStep(session, evidence)` to traverse the active scenario tree one step at a time.
+  - **Agent Mode**: Calls `agent.proposePlan(session, evidence, assetGraph)` to construct a sequence of at most 6 read-only probes, adapting after each observation.
+- **Fallback Engine**: When an incident does not match a pre-registered scenario or the AI provider is offline, the engine dynamically constructs a 4-stage L1–L7 structured diagnostic tree (Physical/Link $\rightarrow$ IP/Routing $\rightarrow$ Transport/Port $\rightarrow$ Application/Auth).
+
+### 2.4 Data Persistence Layer
+- **ORM**: Prisma ORM with SQLite database (`prisma/dev.db`).
+- **Rationale for Prisma + SQLite**:
+  - **Zero-Friction Solo Setup**: No Docker daemon, cloud credentials, or external DB servers required for evaluation or offline demos.
+  - **Relational Integrity**: Foreign key constraints, cascading deletes, and many-to-many relationship tables (`AssetDependency`, `IncidentAsset`).
+  - **Type Safety**: End-to-end auto-generated TypeScript types matching Prisma schema.
+  - **Portability**: Database file can be seeded, backed up, or reset instantly.
 
 ---
 
-## 6. Directory Structure
+## 3. Directory Structure
 
 ```
 fixflow-ai/
 ├── docs/
 │   ├── PRODUCT_SPEC.md
 │   ├── ARCHITECTURE.md
+│   ├── DATA_MODEL.md
 │   ├── SAFETY.md
+│   ├── IMPLEMENTATION_PLAN.md
 │   ├── DEMO_SCRIPT.md
-│   └── IMPLEMENTATION_PLAN.md
+│   └── TEST_PLAN.md
+├── prisma/
+│   ├── schema.prisma              # Relational schema (Assets, Incidents, Evidence, Reports)
+│   ├── seed.ts                    # Realistic demo seed data (Assets, Topologies, Scenarios)
+│   └── dev.db                     # SQLite database file
+├── public/
+│   └── templates/                 # CSV import templates
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx                # App layout, ThemeProvider, ToastProvider
-│   │   ├── page.tsx                  # Landing / Dashboard / Recent Incidents
+│   │   ├── api/
+│   │   │   ├── agent/             # Bounded agent planning & step execution
+│   │   │   ├── ai/                # LLM provider adapter endpoints
+│   │   │   ├── assets/            # Asset inventory CRUD & CSV import
+│   │   │   ├── dependencies/      # Infrastructure relationship graph
+│   │   │   └── incidents/         # Incident lifecycle & workbench sessions
+│   │   ├── assets/                # Asset inventory management UI
+│   │   ├── dependency-map/        # React Flow infrastructure topology UI
 │   │   ├── incident/
-│   │   │   ├── new/
-│   │   │   │   └── page.tsx          # Incident Intake Form & Quick Paste
-│   │   │   └── [id]/
-│   │   │       ├── page.tsx          # Main Diagnostic Workbench Console
-│   │   │       └── report/
-│   │   │           └── page.tsx      # Full Post-Mortem & PDF Print View
-│   │   └── api/
-│   │       ├── diagnose/
-│   │       │   ├── guided/route.ts   # Adaptive single-step generation
-│   │       │   └── agent/route.ts    # Bounded multi-step plan generation
-│   │       └── tools/
-│   │           └── execute/route.ts  # Safe tool parser/runner
+│   │   │   ├── [id]/
+│   │   │   │   ├── page.tsx       # Diagnostic Workbench (Runner/Tree/Timeline)
+│   │   │   │   └── report/        # Incident Post-Mortem & Vector PDF view
+│   │   │   └── new/               # Natural language intake & triage
+│   │   ├── investigations/        # Searchable historical incident catalog
+│   │   ├── settings/              # Settings & AI provider status
+│   │   ├── globals.css            # Dark enterprise IT design tokens & print styles
+│   │   ├── layout.tsx             # Root layout with sidebar navigation & top bar
+│   │   └── page.tsx               # Operations Dashboard
 │   ├── components/
-│   │   ├── common/                   # Buttons, Badges, Modals, Tabs, Tooltips
-│   │   ├── intake/                   # Intake form, raw paste parser, preset loader
-│   │   ├── workbench/                # Tri-pane layout container & header
-│   │   │   ├── ContextPanel.tsx      # Left: Metadata, Environment, Evidence Locker
-│   │   │   ├── ExecutionPanel.tsx    # Center: Mode switch, Guided Step, Agent Feed
-│   │   │   └── KnowledgePanel.tsx    # Right: Investigation Tree, Hypotheses, Remediation
-│   │   ├── guided/                   # Guided question card, CLI generator, response form
-│   │   ├── agent/                    # Agent plan visualizer, step runner, pause controls
-│   │   ├── tree/                     # Interactive SVG/Canvas Investigation Tree
-│   │   ├── evidence/                 # Evidence items, paste modal, verification badge
-│   │   ├── report/                   # Post-mortem layout, print stylesheet, PDF trigger
-│   │   └── history/                  # Incident drawer, export/import modal
+│   │   ├── assets/                # Asset tables, forms, CSV importer
+│   │   ├── dependency-map/        # React Flow custom nodes & edge controls
+│   │   ├── layout/                # Sidebar, header, status badges, breadcrumbs
+│   │   ├── ui/                    # Reusable primitives (Buttons, Cards, Modals, Inputs)
+│   │   └── workbench/             # Diagnostic runner, VisualDecisionTree, Timeline, EvidenceLocker
 │   ├── lib/
-│   │   ├── db/                       # Dexie.js database setup & repository methods
-│   │   ├── engine/                   # Shared diagnostic state machine & Bayesian scorer
-│   │   ├── tools/                    # Registered safe diagnostic tools & output parsers
-│   │   ├── llm/                      # Gemini / OpenAI client & structured prompt builders
-│   │   ├── schemas/                  # Zod validation schemas
-│   │   ├── deterministic/            # Built-in sample scenario & deterministic engine
-│   │   └── utils/                    # Command formatters, sanitizers, date helpers
-│   ├── types/                        # Full TypeScript domain definitions
-│   └── styles/                       # Global Tailwind styles & print CSS
-├── public/                           # Logos, icons, sample packet captures
-├── package.json
-├── tsconfig.json
+│   │   ├── agent/                 # Bounded planner, loop prevention, approval gating
+│   │   ├── ai/                    # Gemini adapter, fallback engine, prompt templates
+│   │   ├── db/                    # Prisma client singleton
+│   │   ├── engine/                # Diagnostic engine, scenario registry, hypothesis matrix
+│   │   ├── safety/                # Command validator, tool allowlist, parameter sanitizers
+│   │   └── utils/                 # CSV parser, formatting, error helpers
+│   └── types/
+│       ├── asset.ts               # Asset & relationship type definitions
+│       ├── diagnostic.ts          # Steps, evidence, hypotheses, scenarios
+│       ├── incident.ts            # Incident sessions, triage, RCA
+│       └── safety.ts              # Tool allowlist & risk classifications
 ├── tailwind.config.ts
-└── next.config.ts
+├── tsconfig.json
+├── package.json
+└── README.md
 ```
+
+---
+
+## 4. Non-Functional Invariants & Performance Goals
+
+1. **Zero Client Secret Leakage**: The browser bundle never receives API keys. All LLM calls pass through Next.js server-side route handlers with Zod schema enforcement.
+2. **Deterministic UI Responsiveness**: Diagnostic state transitions execute synchronously in $<50\text{ms}$. AI-assisted explanations and synthesis have a strict $10\text{s}$ timeout with fallback to deterministic knowledge.
+3. **Print / Vector PDF Fidelity**: The Post-Mortem Report route (`/incident/[id]/report`) renders high-contrast, pure-white backgrounds with crisp black typography, eliminating navigation sidebars and preserving table borders on standard letter/A4 paper.
+4. **Accessible Keyboard Navigation**: All diagnostic controls, copy buttons, result radio options, and tab switchers support standard tab/enter/space keyboard navigation with visible focus rings.

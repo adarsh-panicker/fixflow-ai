@@ -1,172 +1,173 @@
 # FixFlow AI — Product Specification
 
-**Version:** 1.0.0  
-**Status:** Approved for Implementation  
-**Target:** Hackathon MVP & Production-Ready Diagnostic Workbench  
-**Author:** Lead Product Engineer  
-
----
-
 ## 1. Executive Summary & Vision
 
-**FixFlow AI** is a purpose-built IT troubleshooting workbench designed to replace chaotic, unstructured terminal notes and generic AI chatbots with a disciplined, evidence-based diagnostic console. 
+**FixFlow AI** is an inventory-aware, AI-assisted IT troubleshooting workbench designed for IT support technicians, system administrators, and site reliability engineers (SREs). 
 
-In real-world IT operations—from Tier-1 service desk technicians to Tier-3 infrastructure engineers—troubleshooting often fails due to hasty assumptions, untracked evidence, disjointed log pastes, and risky copy-pasted commands. Generic chat interfaces exacerbate this problem: they lack structured state, hallucinate root causes without verification, and encourage dangerous autonomous shell executions.
+Traditional IT triage tools fall into two extremes: rigid, un-contextual decision trees that don't know your specific infrastructure, or generic AI chat interfaces (e.g. ChatGPT) that hallucinate dangerous commands, lack infrastructure context, and fail to track verifiable diagnostic evidence.
 
-FixFlow AI bridges this gap with:
-1. **Evidence-Driven Investigation:** Treating every diagnostic idea strictly as a hypothesis until confirmed by verifiable artifacts.
-2. **Dual-Mode Engine:** Seamlessly switching between **Guided Mode** (step-by-step, adaptive questions for junior technicians) and **Agent Mode** (bounded, multi-step autonomous planning for seasoned engineers).
-3. **Interactive Visual Topology:** A dynamic investigation tree that visualizes symptoms, tested hypotheses, evidence linkages, and confirmed root causes in real time.
-4. **Safety & Verification First:** Complete guardrails preventing uncontrolled shell commands or autonomous system modifications, paired with a deterministic offline mode for bulletproof demos and air-gapped environments.
+FixFlow AI bridges this divide through **Inventory-Aware Diagnostic Reasoning**:
+- **Asset & Dependency Grounding**: Troubleshooting is grounded in the organization's real IT asset registry (servers, workstations, firewalls, hypervisors, services, and network switches) and confirmed infrastructure relationships (`depends_on`, `hosted_on`, `routes_through`, `authenticates_against`).
+- **Dual Diagnostic Engines**: 
+  - **Guided Mode**: A deterministic, step-by-step diagnostic runner presenting one validated test at a time with copyable read-only commands, expected outputs, safety ratings, and manual result entry.
+  - **Agent Mode**: A bounded multi-step autonomous planner (maximum 6 steps per cycle) that constructs a goal-directed investigation plan and adapts dynamically as the human technician supplies test results.
+- **Strict Version A Air-Gapped / Human-in-the-Loop Access Model**: 
+  - No autonomous network discovery, background ping sweeps, or daemon connection to corporate networks.
+  - Zero autonomous command execution or remote system modifications.
+  - Technicians execute read-only diagnostic commands on their endpoints and enter observed outputs back into FixFlow AI.
+- **Auditable Truth-in-Reporting**: A hard boundary between **Observed Facts** (backed by recorded evidence), **Candidate Hypotheses** (ranked by confidence), and **Unverified Recommendations**.
 
 ---
 
 ## 2. Target Personas & Experience Levels
 
-FixFlow AI adapts its terminology, diagnostic verbosity, tooling recommendations, and safety explanations based on the user's declared proficiency level:
+FixFlow AI dynamically adapts terminology, command verbosity, and diagnostic guidance based on the operator's experience tier:
 
-| Experience Level | Target Persona | Diagnostic UX Behavior | Output & Command Style |
-|---|---|---|---|
-| **Beginner** | End users, junior helpdesk analysts, trainees | Highly guided, conversational explanations of *why* a test is needed. Minimal jargon. Emphasizes visual checks and copy-pasteable safe read-only commands with clear explanations of what output to look for. | Plain-English summaries, safe one-line command helpers with detailed walkthroughs, heavy guardrail warnings. |
-| **Intermediate** | IT support specialists, system administrators, field techs | Accelerated triage, structured hypothesis testing, quick log interpretation. Focuses on efficient command sequences, network traces, and OS event log filtering. | Direct CLI/PowerShell/Bash snippets, flags explained succinctly, side-by-side evidence comparison. |
-| **Advanced** | Senior sysadmins, SREs, network engineers, security analysts | Unbounded hypothesis exploration, raw telemetry/packet inspection, multi-vector graph analysis, and rapid root cause synthesis. | Dense telemetry views, raw regex/log filters, architectural impact analysis, and formal RCA generation. |
-
----
-
-## 3. Incident Category Taxonomy
-
-FixFlow AI organizes diagnostic logic, tool registries, and pre-built symptom catalogs into 12 primary IT domains:
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                   FIXFLOW AI DOMAIN TAXONOMY                          │
-├────────────────────┬────────────────────┬──────────────────────────────┤
-│ 1. Networking      │ 5. Windows OS      │  9. Email & Collaboration    │
-│ 2. DNS             │ 6. Accounts & Perms│ 10. Backup & Storage         │
-│ 3. VPN             │ 7. Apps & Services │ 11. Printers & Peripherals   │
-│ 4. Firewall        │ 8. Virtualization  │ 12. Endpoint & Security      │
-└────────────────────┴────────────────────┴──────────────────────────────┘
-```
-
-1. **Networking:** L1–L4 connectivity, routing loops, default gateways, MTU clamping, packet drop, duplex mismatches, DHCP exhaustion.
-2. **DNS:** Resolution failures, TTL caching issues, split-brain DNS, missing PTR/CNAME records, authoritative vs. recursive timeouts.
-3. **VPN:** IPsec/WireGuard/OpenVPN tunnel negotiation, phase 1/phase 2 failures, split tunneling route leaks, MTU/MSS black hole issues.
-4. **Firewall:** Stateful inspection drops, inbound/outbound ACLs, NAT translation table exhaustion, deep packet inspection (DPI) certificate rejections.
-5. **Windows:** Event Viewer (System, Application, Security), Service Control Manager (SCM), Registry anomalies, WMI/CIM errors, BSOD stop codes.
-6. **Accounts & Permissions:** Active Directory lockouts, Kerberos ticket expiration, NTFS/POSIX ACLs, IAM role misconfigurations, MFA desync.
-7. **Applications & Services:** Process crashes, memory leaks, port collisions (e.g., port 80/443/8080 already bound), missing runtime dependencies (.NET, Visual C++, Java).
-8. **Servers & Virtualization:** Hypervisor contention (VMware ESXi, Hyper-V, Proxmox), vCPU overcommit, balloon memory pressure, storage IOPS starvation.
-9. **Email:** SMTP relay rejections, MX lookup failures, SPF/DKIM/DMARC alignment errors, TLS handshake mismatches, mailbox database dismounts.
-10. **Backup & Storage:** VSS (Volume Shadow Copy) provider errors, snapshot timeouts, NAS/SAN iSCSI target drops, LUN capacity exhaustion.
-11. **Printers & Peripherals:** Spooler RPC service crashes, driver isolation conflicts, RAW/LPR port timeouts, USB controller bus resets.
-12. **Endpoint & Security Incidents:** Suspicious outbound beaconing, unauthorized registry startup items, EDR containment status, certificate expiration.
+| Persona | Role | Needs & Pain Points | Experience Setting | Adapted Behavior |
+| :--- | :--- | :--- | :--- | :--- |
+| **Tier 1 / Junior Help Desk** | Junior IT Technician | Unsure which CLI tools to run; prone to premature reboots or escalation. | **Beginner** | Detailed step explanations, exact command syntax with parameters pre-filled, plain-English "what to look for", safety warnings. |
+| **Tier 2 / Systems Administrator** | SysAdmin / Network Admin | Handles complex multi-system outages; needs rapid isolation of routing vs DNS vs auth. | **Intermediate** | Compact syntax, direct PowerShell/Bash snippets, emphasis on topology paths and dependency impact. |
+| **Tier 3 / SRE / Lead Architect** | Senior Engineer / Incident Lead | Needs rapid hypothesis testing, raw evidence logging, timeline auditing, and instant executive RCA generation. | **Advanced** | Minimalist command views, raw regex/telemetry entry, full hypothesis matrix weights, direct export to post-mortem. |
 
 ---
 
-## 4. Core Product Requirements & MVP Scope
+## 3. Scope & Infrastructure Access Boundary (Version A)
 
-### 4.1 Incident Intake
-- **Dual Intake Modes:** Quick Form (guided dropdowns for Category, Experience Level, Severity, Blast Radius) vs. Raw Symptom Log Paste (AI auto-extracts symptoms, environment, and error codes).
-- **Blast Radius Tagging:** Individual User, Workgroup / Department, Branch Office, Entire Enterprise / Critical Infrastructure.
-- **Urgency Matrix:** P1 (Outage / Revenue Impact), P2 (Degraded High Priority), P3 (Standard Impairment), P4 (Minor / Inquiry).
-- **Environment Context:** OS (Windows, macOS, Linux, Hybrid), Network Zone (Corp LAN, Remote/VPN, Cloud VPC, DMZ).
-
-### 4.2 Diagnostic Workbench (Console Layout)
-The UI avoids generic centered chat bubbles in favor of an **IT Operations Control Room** layout:
-- **Left Panel (Incident Context & Evidence Locker):**
-  - Incident metadata, active symptoms, and live blast radius.
-  - Evidence Locker: List of collected artifacts (terminal outputs, ping stats, log snippets, screenshot notes) with verifiable status tags.
-  - Quick action toolbar: Add manual evidence, clear session, export snapshot.
-- **Center Panel (Diagnostic Engine Execution):**
-  - Mode Switcher: Guided Mode vs. Agent Mode.
-  - Guided Mode view: Interactive Step Card (current question, diagnostic reasoning, safe command generator with copy button, test response buttons: *Yes / No / Inconclusive / Paste CLI Output*).
-  - Agent Mode view: Bounded Plan Pipeline (e.g., Step 2 of 4), Autonomous Step Feed with collapsible tool execution results, hypothesis re-evaluations, and pause/resume/step-over controls.
-- **Right Panel (Investigation Tree & Hypothesis Matrix):**
-  - Interactive SVG/Canvas-based Investigation Tree visualizing nodes: `Symptom` ➔ `Hypothesis` ➔ `Diagnostic Test` ➔ `Evidence` ➔ `Verified Root Cause`.
-  - Hypothesis Confidence Matrix: Dynamic probability bars (0–100%), status badges (*Active, Confirmed, Refuted, Pending Evidence*).
-  - Remediation Action Deck: Step-by-step verified fix instructions with diffs and rollback plans once root cause is established.
-
-### 4.3 Dual Diagnostic Modes (Shared Engine)
-Both modes share the identical underlying state machine, evidence model, and safety policy:
-
-```mermaid
-flowchart TD
-    subgraph Intake["1. Incident Intake"]
-        I[User Input: Symptoms, Category, Level]
-    end
-
-    subgraph Engine["Shared Diagnostic Engine"]
-        KB[(Evidence & Hypothesis State)]
-        TR[Tool Registry: Safe Diagnostics]
-        SP[Safety & Blast-Radius Policy]
-    end
-
-    subgraph Guided["Guided Mode"]
-        GM1[Adaptive Question Generator] --> GM2[User Input / Output Paste]
-        GM2 --> GM3[Evidence Ingestion & Scoring]
-    end
-
-    subgraph Agent["Agent Mode (Bounded)"]
-        AM1[Plan Multi-Step Investigation] --> AM2[Execute Sandboxed Tool / Parse Output]
-        AM2 --> AM3[Synthesize Evidence & Prune Hypotheses]
-        AM3 --> AM4{Max Steps Reached or Root Cause Confirmed?}
-        AM4 -- No --> AM1
-        AM4 -- Yes --> AM5[Generate Resolution]
-    end
-
-    I --> KB
-    KB <--> GM1
-    KB <--> AM1
-    TR <--> GM1
-    TR <--> AM2
-    SP --- TR
-```
-
-#### Guided Mode
-- Emits **one test/question at a time**.
-- Based on the user's answer or pasted terminal output, the shared engine evaluates evidence, recalculates Bayesian-style confidence for all hypotheses, and selects the single most informative next diagnostic test (Highest Information Gain).
-- Prevents cognitive overload for junior operators.
-
-#### Agent Mode
-- Emits a **bounded multi-step investigation plan** (default 4–6 steps, max 8 steps).
-- For each step, the agent simulates or executes safe read-only tools, inspects evidence, records intermediate observations, and dynamically revises subsequent steps if new data invalidates earlier assumptions.
-- Includes safety interrupts: user can pause, inspect reasoning, skip steps, or override hypothesis scores at any time.
-
-### 4.4 Evidence & Hypothesis Tracking
-- **Hypothesis Model:**
-  - `id`, `title`, `description`, `category`, `probability` (0.0 to 1.0), `status` (`tentative`, `likely`, `confirmed`, `refuted`), `supportingEvidenceIds`, `refutingEvidenceIds`.
-- **Evidence Item Model:**
-  - `id`, `timestamp`, `source` (`user_input`, `command_output`, `log_file`, `tool_result`), `type` (`terminal`, `metric`, `boolean`, `text`), `rawPayload`, `summary`, `confidenceImpact`.
-- Mathematical sanity check: hypotheses are dynamically re-ranked based on evidence weight. No hypothesis can be labeled `confirmed` without at least one verifiable supporting evidence artifact.
-
-### 4.5 Findings & Incident Post-Mortem Report
-Upon reaching a confirmed root cause (or user-initiated report generation), FixFlow AI produces an enterprise-grade Incident Post-Mortem:
-- **Executive Summary:** Plain-language incident brief for non-technical stakeholders.
-- **Incident Timeline:** Millisecond-accurate chronology of symptoms reported, tests executed, and evidence discovered.
-- **Root Cause Analysis (RCA):** The 5-Whys analysis and technical failure mechanism.
-- **Corrective Action & Remediation:** Reviewed fix commands with explicit pre-flight checks and rollback instructions.
-- **Preventative Measures:** Long-term architectural or policy recommendations to prevent recurrence.
-
-### 4.6 PDF Export
-- Generates a beautifully styled, branded, and print-ready PDF document directly in the browser.
-- Includes table of contents, timeline graphic, evidence attachments, and signature blocks for IT compliance sign-off.
-
-### 4.7 Local Incident Persistence (IndexedDB)
-- 100% offline-first architecture powered by IndexedDB.
-- Stores full incident sessions, snapshot history, custom notes, and evidence logs.
-- Features an Incident Drawer / History Browser: resume ongoing diagnostics, view past resolved incidents, or export/import JSON incident packages.
-
-### 4.8 Deterministic Sample Scenario (Judge & Offline Ready)
-- Built-in, high-fidelity offline scenario: **"VPN Connected but Internal Production Database & Intranet Unreachable (Split-Brain DNS & MTU Clamping Failure)"**.
-- Runs completely without external LLM API keys or internet connection.
-- Demonstrates full Guided Mode and Agent Mode workflows, terminal output parsing, hypothesis pruning, investigation tree animation, and PDF generation with 100% deterministic reliability.
+FixFlow AI strictly adheres to the **Version A** infrastructure access model:
+1. **Manual Inventory Registration & CSV Import**: IT assets and topologies are explicitly entered by the user or imported via standard CSV/JSON schemas. No background network scanning or SNMP discovery.
+2. **Human-Operated Diagnostic Execution**: FixFlow AI provides exact, verified, copyable diagnostic commands (PowerShell, Bash, Command Prompt). The human operator executes the command on the target system and records the observed result (Passed, Failed, Inconclusive, Error, or raw terminal output).
+3. **Zero Autonomous Remote Changes**: FixFlow AI has no SSH keys, WinRM credentials, domain admin tokens, or agent daemons. It cannot reboot machines, modify registry keys, alter firewall rules, restart services, or delete files.
+4. **Offline Zero-Key Reliability**: Works completely out-of-the-box without live external API keys using built-in deterministic scenario engines and labeled fallback models (`provenance: 'deterministic_fallback'`). When a Google Gemini API key is configured server-side, it unlocks structured generative synthesis, free-text parsing, and dynamic plan adaptation.
 
 ---
 
-## 5. Non-Functional Requirements & Design Principles
+## 4. Product Modules & Functional Specifications
 
-1. **Zero Fake Chat:** Avoid standard chat bubbles. Every diagnostic action is an interactive card, form, or visual graph node.
-2. **Speed & Responsiveness:** Instant UI updates (<50ms for local state transitions); streaming or progressive loading states for LLM reasoning steps.
-3. **Graceful Degradation:** If LLM API credentials are not provided or network errors occur, the system immediately offers the deterministic sample runner or manual diagnostic mode without breaking.
-4. **Accessibility:** WCAG 2.1 AA compliant colors, accessible form fields, keyboard navigation for modal dialogues, and screen-reader-friendly status indicators.
-5. **Mobile / Responsive Layout:** Collapsible panels that scale down seamlessly from 4K ultrawide displays to tablets and laptops.
+### Module 1: Dashboard (`/`)
+- **Active Operations Center**: Real-time snapshot of active incidents, priority breakdown (P1 Critical through P4 Low), mean time to triage, and asset health status.
+- **Quick Action Bar**: "New Incident Intake", "Register Asset", "Import Inventory CSV", and "View Dependency Map".
+- **Recent Investigation Queue**: Sortable, filterable list of in-progress and recently closed diagnostic sessions.
+
+### Module 2: AI Troubleshooter / Diagnostic Workbench (`/incident/[id]`)
+- **Unified Center Console**:
+  - **Diagnostic Runner**: Renders the current step (Guided) or the active plan execution queue (Agent). Shows command syntax, purpose, expected normal vs. failure patterns, rollback/safety notes, and manual result inputs.
+  - **Visual Decision Tree**: Interactive node graph representing symptoms, investigated branches, and confirmed/refuted hypotheses.
+  - **Investigation Timeline**: Chronological log of technician actions, test inputs, recorded telemetry, and state transitions.
+- **Right Context Rail (Collapsible)**:
+  - **Associated Assets & Dependencies**: The target asset, upstream dependencies (e.g. gateway, DNS server, AD DC), and downstream services.
+  - **Evidence Locker**: Filterable log of recorded observations classified by impact (`supporting`, `refuting`, `neutral`).
+  - **Hypothesis Matrix**: Dynamic table of competing hypotheses with live confidence meters.
+
+### Module 3: Asset Inventory (`/assets`)
+- **Asset Catalog**: Full CRUD management of enterprise IT assets with metadata: Asset Tag, Name, Type, Hostname/FQDN, IP Address/Subnet, Operating System, Physical/Virtual Location, Criticality (Tier 1-4), Assigned Owner, and Operational Status.
+- **Supported Asset Types**:
+  - `Server` (Physical Windows/Linux)
+  - `Virtual Machine` (VMware, Hyper-V, KVM)
+  - `Workstation` / `Laptop` (Windows 11, macOS, Ubuntu)
+  - `Network Device` (Switch, Router, Gateway)
+  - `Firewall` / `VPN Appliance`
+  - `Storage / NAS / SAN`
+  - `Shared Folder / SMB Share`
+  - `Database` (PostgreSQL, MSSQL, MySQL)
+  - `Application / SaaS`
+  - `Windows Service / Daemon`
+  - `Printer / Peripheral`
+- **CSV Import / Export**:
+  - Bulk import via CSV with schema validation, dry-run preview, and duplicate detection.
+  - Template download with pre-formatted columns.
+
+### Module 4: Infrastructure Dependency Map (`/dependency-map`)
+- **Visual Graph Visualization**: Powered by React Flow (`@xyflow/react`) with custom dark-navy node cards.
+- **Relationship Taxonomy**:
+  - `depends_on`: Upstream functional dependency (e.g. ERP App depends on Database Server).
+  - `hosted_on`: Virtualization/container relationship (e.g. VM hosted on Hypervisor Cluster).
+  - `connects_to`: Network transport link (e.g. Workstation connects to Core Switch).
+  - `authenticates_against`: Identity relationship (e.g. File Server authenticates against Active Directory DC).
+  - `routes_through`: Gateway/Firewall route (e.g. Branch Office routes through Edge Firewall).
+- **Interactive Triage Highlighting**: When an asset is linked to an active incident, the dependency map highlights the blast radius and upstream single-points-of-failure.
+
+### Module 5: Incident History (`/investigations`)
+- **Historical Repository**: Searchable archive of all historical triage investigations.
+- **Multi-Faceted Search**: Filter by incident ID, target asset, category, technician, date range, resolution status (`investigating`, `root_cause_identified`, `resolved`, `escalated`, `closed`), and diagnostic mode used.
+
+### Module 6: Findings & Post-Mortem PDF Reports (`/incident/[id]/report`)
+- **Comprehensive RCA Summary**:
+  - Incident Brief (Title, impacted systems, timeline, severity, MTTR).
+  - Confirmed Root Cause & 5-Whys causal chain.
+  - Complete Evidence Audit Trail (timestamped test results entered by technician).
+  - Remediation Action Items (distinguishing verified immediate fixes from unverified long-term recommendations).
+- **Interactive Editing**: Operators can update executive notes and toggle verification checkboxes.
+- **Vector PDF / Print Engine**: Dedicated `@media print` CSS layout that renders a clean, professional, high-contrast black-and-white executive document via standard browser print dialog (`window.print()`).
+
+### Module 7: Settings & AI Configuration (`/settings`)
+- **System & LLM Status**: Live health indicator for server-side Gemini API or local fallback.
+- **Model Parameters**: Selection of model (`gemini-2.5-flash`, `gemini-1.5-pro`), timeout configurations, retry thresholds.
+- **Experience Level Default**: Global operator profile toggle (Beginner, Intermediate, Advanced).
+- **Database & Data Management**: Reset demo data, export full SQLite database, re-seed initial scenarios.
+
+---
+
+## 5. Five Representative Deterministic Scenarios (Inventory-Aware)
+
+FixFlow AI ships with five end-to-end deterministic scenarios that link directly to registered inventory assets:
+
+### Scenario 1: DNS Resolution & Zone Delegation Failure
+- **Incident Description**: "Workstations in Finance subnet cannot resolve internal accounting portal `erp.corp.internal`."
+- **Involved Assets**: Workstation `FIN-WS-012`, Core Switch `SW-CORE-01`, Internal DNS Server `DC-DNS-01` (`10.0.1.10`), Backup DNS `DC-DNS-02`.
+- **Diagnostic Flow**:
+  1. Test local DNS client resolver cache and adapter configuration.
+  2. Query primary internal DNS server via `Resolve-DnsName -Server 10.0.1.10`.
+  3. Query root forwarder / upstream gateway.
+  4. Inspect forward lookup zone delegation and SRV records.
+- **Root Cause Isolated**: Stale forwarding record and expired zone replication between `DC-DNS-01` and `DC-DNS-02`.
+
+### Scenario 2: VPN Connected but Remote SMB File Server Inaccessible
+- **Incident Description**: "Remote executives can connect to corporate VPN but get `0x80070035 Network Path Not Found` when opening `\\fs01.corp.internal\Shared`."
+- **Involved Assets**: Client Laptop `EXEC-LT-04`, VPN Gateway `FW-EDGE-01`, Core File Server `FS-CORP-01` (`10.200.4.50`).
+- **Diagnostic Flow**:
+  1. Verify virtual adapter IP assignment (`172.16.50.14`) and default subnet mask.
+  2. Test ICMP reachability to `10.200.4.50`.
+  3. Test SMB TCP Port 445 socket reachability.
+  4. Perform path MTU sweep (`ping -f -l 1472`) to detect packet fragmentation black-holes.
+  5. Audit split-tunnel routing table (`route print`) for corporate subnet prefix `10.200.0.0/16`.
+- **Root Cause Isolated**: VPN concentrator DHCP push omitted the static routing prefix for `10.200.4.0/24`, causing file share traffic to route out the local internet interface.
+
+### Scenario 3: Windows Print Spooler Crash Loop & Dependency Deadlock
+- **Incident Description**: "All warehouse shipping label printers went offline; Print Spooler service on print server terminates within 5 seconds of starting."
+- **Involved Assets**: Print Server `SRV-PRINT-01`, Warehouse Thermal Printer `PRN-WH-01`, Windows Service `Spooler`.
+- **Diagnostic Flow**:
+  1. Query Windows Service status (`Get-Service Spooler`).
+  2. Query Event Viewer System log for Event ID 7031/7034 (Service Crash).
+  3. Query Application log for faulting module in `spoolsv.exe`.
+  4. Check `C:\Windows\System32\spool\PRINTERS\` directory for corrupted `.SHD` and `.SPL` spool files.
+- **Root Cause Isolated**: Corrupted print job file `00042.SHD` in spool queue directory causing heap corruption in `spoolsv.exe` upon service initialization.
+
+### Scenario 4: Active Directory Kerberos Token Bloat & NTFS Access Denial
+- **Incident Description**: "Senior manager added to new Security Groups suddenly receives `Access Denied` on previously accessible department folder `\\fs-corp-01\Engineering`."
+- **Involved Assets**: Workstation `ENG-WS-088`, Domain Controller `DC-AUTH-01`, File Server `FS-CORP-01`, User Account `j.doe@corp.internal`.
+- **Diagnostic Flow**:
+  1. Verify effective NTFS permissions on target directory.
+  2. Check SMB session cache on client (`klist sessions`).
+  3. Inspect Kerberos ticket size and group membership count (`klist get krbtgt`).
+  4. Check HTTP/SMB MaxTokenSize event logs (Event ID 400).
+- **Root Cause Isolated**: User belongs to >120 security groups, causing Kerberos token to exceed the default buffer size (Token Bloat), leading to silent SMB ticket rejection.
+
+### Scenario 5: VSS Writer Failure & Nightly Backup Job Abort
+- **Incident Description**: "Veeam nightly backup for database virtual machine `SRV-SQL-01` failed with `VSS snapshot creation timed out`."
+- **Involved Assets**: Virtual Host `HYPER-NODE-02`, Virtual Machine `SRV-SQL-01`, Storage Array `SAN-VOL-03`, SQL Writer Service.
+- **Diagnostic Flow**:
+  1. Query VSS writers status via `vssadmin list writers`.
+  2. Query VSS shadow storage allocation via `vssadmin list shadowstorage`.
+  3. Query Windows System Event log for VolSnap Event ID 25/36 (Insufficient shadow copy storage).
+  4. Check disk I/O latency during snapshot window.
+- **Root Cause Isolated**: `SqlServerWriter` entered `[State 8: Failed] [Timed out]` due to shadow copy storage on volume `D:` exceeding its 10% maximum storage limit.
+
+---
+
+## 6. Success Metrics & Hackathon MVP Acceptance Criteria
+
+1. **Complete Incident Lifecycle**: A user can create an incident, select or map an asset, execute a diagnostic session in Guided or Agent mode, confirm the root cause, and export a clean PDF report.
+2. **Deterministic Offline Demonstration**: All five scenarios run completely without network connectivity or API keys.
+3. **AI Enhancement**: When `GEMINI_API_KEY` is provided, natural language intake is structured automatically into technical metadata, and investigations adapt dynamically with LLM synthesis.
+4. **Safety Verification**: 100% of suggested commands are read-only. Zero command executions take place on the host machine.
+5. **Asset & Dependency Grounding**: Diagnostic tests reference the actual names, IP addresses, and dependencies of registered assets.

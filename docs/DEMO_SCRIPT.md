@@ -1,141 +1,100 @@
-# FixFlow AI — Hackathon Demo Script & Judge Walkthrough
+# FixFlow AI — Demonstration Script & Evaluation Guide
 
-**Version:** 1.0.0  
-**Target:** Hackathon Judges, Evaluators & Live Product Demos  
-**Estimated Time:** 3-Minute Express Demo or 5-Minute Deep-Dive  
-**Offline Readiness:** 100% Deterministic (Zero API key or external internet connection required)
+This document provides a structured, timed walkthrough for hackathon judges, evaluators, and stakeholders to experience FixFlow AI's full capabilities in under 5 minutes.
 
 ---
 
-## 1. Quick Pitch (30 Seconds)
+## 1. Demo Prerequisites & Zero-Key Setup
 
-> *"Hello judges! As IT technicians and SREs, we waste hours triaging infrastructure incidents using messy notes and generic AI chatbots. But generic chatbots hallucinate root causes, encourage dangerous copy-pasted commands, and fail to track evidence.*
-> 
-> *Meet **FixFlow AI** — a polished, evidence-driven IT troubleshooting workbench built for real-world operations. FixFlow combines adaptive **Guided Mode** for tier-1 techs, autonomous bounded **Agent Mode** for senior engineers, an interactive **Investigation Tree**, and a strict safety policy that never executes arbitrary commands blindly. Let's see it in action."*
+FixFlow AI is engineered to run **100% offline out-of-the-box** without any cloud credentials or API keys.
 
----
-
-## 2. Walkthrough Timetable (3-Minute Express Track)
-
-| Time | Segment | Key Feature Displayed | Judge Takeaway |
-|---|---|---|---|
-| **0:00 - 0:30** | Incident Intake & Category Taxonomy | Experience level selector (Beginner/Intermediate/Advanced), 12 IT categories, 1-Click Deterministic Demo Scenario button. | Instant setup, realistic IT design, no generic chat bubble. |
-| **0:30 - 1:15** | Guided Mode & Evidence Ingestion | Adaptive single-question runner, safe command generator, terminal output paste, real-time Bayesian hypothesis scoring. | Adaptive intelligence, step-by-step clarity, evidence-driven logic. |
-| **1:15 - 2:00** | Agent Mode & Bounded Planning | Switching to Agent Mode, autonomous 4-step investigation plan, pause/step-over controls, sandboxed diagnostic execution. | Safe bounded autonomy, clear visibility into agent reasoning. |
-| **2:00 - 2:30** | Interactive Investigation Tree | Visual graph of symptoms ➔ hypotheses ➔ evidence ➔ verified root cause. | High visual polish, transparent reasoning graph. |
-| **2:30 - 3:00** | Remediation, Post-Mortem & PDF Export | Reviewed fix commands with rollback scripts, 1-click professional PDF Incident Post-Mortem export, IndexedDB persistence. | Production-grade utility, audit-ready compliance artifact. |
+1. Ensure the server is running:
+   ```bash
+   npm run build
+   npm run start
+   # Or for development: npm run dev
+   ```
+2. Open your browser to: **[http://localhost:3000](http://localhost:3000)**
+3. *(Optional)* To enable live Google Gemini structured synthesis, add your API key in `.env.local`:
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   ```
 
 ---
 
-## 3. Step-by-Step Deterministic Scenario Script
+## 2. 5-Minute Hackathon Demo Script
 
-### Scenario Title
-**"VPN Connected but Internal Production Database & Intranet Unreachable: The Split-Brain DNS & MTU Black Hole Incident"**
-
----
-
-### Step 1: Rapid Incident Intake (0:00 - 0:30)
-1. Navigate to FixFlow AI home page (`/`).
-2. Notice the clean, dark-mode IT Operations Console with recent incidents and system health badges.
-3. Click **"New Incident"** or **"Launch Deterministic Demo Scenario"**.
-4. Show the intake form:
-   - **Title:** `Remote Devs on WireGuard VPN cannot connect to prod-db-01.corp.internal`
-   - **Category:** Select `VPN` (or `Networking`).
-   - **Experience Level:** Select `Intermediate` (highlight how the UI adjusts hints and command depth).
-   - **Severity:** `P2 - High` | **Blast Radius:** `Team / Department (Remote Engineers)`.
-   - **Raw Symptom Paste:**
-     ```
-     Users report VPN connects successfully and assigns 10.8.0.42.
-     Pinging 8.8.8.8 works fine (24ms).
-     Pinging prod-db-01.corp.internal fails: "Ping request could not find host prod-db-01.corp.internal".
-     Connecting to raw IP 10.50.12.8:5432 hangs indefinitely and times out after 30 seconds.
-     curl -v https://intranet.corp.internal hangs at "TLS Handshake: Client Hello".
-     ```
-5. Click **"Initialize Diagnostic Workbench"**.
+### Act 1: The Operations Dashboard & Inventory Context (Minute 0:00 - 1:00)
+- **Narrative**: *"Welcome to FixFlow AI. Today's IT support engineers are bombarded with messy user tickets, while production environments are too fragile to let autonomous agents execute random scripts. FixFlow AI is an inventory-aware diagnostic workbench that pairs safe, deterministic decision trees with bounded AI planning."*
+- **Actions**:
+  1. Start on the **Operations Dashboard** (`http://localhost:3000`). Point out active incident metrics, severity distribution, and recent investigations.
+  2. Click **Asset Inventory** in the sidebar (`/assets`).
+  3. Show the registered enterprise assets (Domain Controllers, File Servers, Core Switches, Virtual Machines).
+  4. Click **Dependency Map** (`/dependency-map`). Show the visual graph of how Workstations connect to Switches, authenticate against Active Directory, and depend on File Servers.
 
 ---
 
-### Step 2: The Diagnostic Workbench & Guided Mode (0:30 - 1:15)
-1. **Explain the Tri-Pane Console Layout:**
-   - **Left:** Incident Metadata & Evidence Locker (currently 2 initial symptom artifacts).
-   - **Center:** Diagnostic Engine Execution (Active Mode: Guided Mode).
-   - **Right:** Investigation Tree & Hypothesis Confidence Matrix.
-2. **Review Initial Hypotheses generated by the engine:**
-   - Hypothesis A: *Corporate DNS Search Suffix / Split-Brain DNS Misconfiguration* (42% confidence - Tentative).
-   - Hypothesis B: *Path MTU Discovery (PMTUD) Black Hole / WireGuard MSS Mismatch* (38% confidence - Tentative).
-   - Hypothesis C: *Target Postgres Service Down on Database Server* (20% confidence - Tentative).
-3. **Inspect the Adaptive Guided Test Card:**
-   - The engine asks: *"Verify if the VPN virtual adapter received the internal DNS server addresses (10.50.0.10, 10.50.0.11)."*
-   - Safe suggested command helper: `Get-DnsClientServerAddress -InterfaceAlias "WG0"` (Windows) or `resolvectl status wg0` (Linux).
-   - Click **"Simulate / Paste Output"**.
-   - Paste simulated output:
-     ```
-     InterfaceAlias: WG0
-     ServerAddresses: {}
-     InterfaceAlias: Wi-Fi
-     ServerAddresses: {192.168.1.1}
-     ```
-4. **Observe Instant Engine Response:**
-   - The engine parses the zero-DNS result.
-   - Hypothesis A (*Split-Brain DNS Misconfiguration*) spikes to **85% (Likely)**.
-   - The Evidence Locker adds `EVID-003: WG0 adapter missing internal DNS servers`.
-   - Notice the Investigation Tree in the right panel dynamically update and highlight the DNS branch.
+### Act 2: Natural Language Intake & Asset Matching (Minute 1:00 - 2:00)
+- **Narrative**: *"Let's take a common, frustrating ticket: A remote executive can connect to the corporate VPN, but cannot access their department file share."*
+- **Actions**:
+  1. Click **New Incident** in the sidebar (`/incident/new`).
+  2. Click the quick-preset chip: **"VPN Connected but File Server Inaccessible"**.
+  3. Notice how the triage engine instantly identifies:
+     - Target Asset: `EXEC-LT-04` (Executive Laptop)
+     - Target Resource: `FS-CORP-01` (`10.200.4.50`)
+     - Category: `VPN & Networking`
+     - Bound Scenario: `VPN Routing & MTU Black Hole Isolation`
+  4. Click **"Launch Investigation Workbench"**.
 
 ---
 
-### Step 3: Switch to Agent Mode with Bounded Planning (1:15 - 2:00)
-1. Click the **"Agent Mode"** toggle in the center execution panel.
-2. The agent analyzes current evidence and formulates a **Bounded 4-Step Investigation Plan**:
-   - Step 1: *Simulate DNS resolution with explicit internal resolver (`Resolve-DnsName prod-db-01.corp.internal -Server 10.50.0.10`).*
-   - Step 2: *Inspect routing table for 10.50.0.0/16 subnet to confirm tunnel gateway path.*
-   - Step 3: *Execute DF (Don't Fragment) MTU sweep to diagnose TLS Client Hello freeze.*
-   - Step 4: *Synthesize findings and isolate root causes.*
-3. Highlight safety controls: **Pause**, **Step Forward**, and **Max Step Limit = 4**.
-4. Click **"Run Next Agent Step"** (or **"Auto-Play Steps"**):
-   - The agent executes Step 1 & 2: confirms DNS server resolves `10.50.12.8` perfectly when explicitly addressed, and route `10.50.0.0/16 via 10.8.0.1` is intact.
-   - The agent executes Step 3: executes simulated MTU ping check (`ping 10.50.12.8 -f -l 1472` ➔ *Packet needs to be fragmented but DF set*). Drops packet size to 1380 ➔ *Reply received!*
-5. The agent synthesizes both verified evidence items:
-   - **Dual Root Cause Confirmed:**
-     1. WireGuard client config missing `DNS = 10.50.0.10, corp.internal` directive.
-     2. Tunnel interface MTU set to standard 1500 instead of 1420, causing PMTUD black hole for TLS handshakes.
+### Act 3: Guided Mode — Safe, Step-by-Step Triage (Minute 2:00 - 3:00)
+- **Narrative**: *"In Guided Mode, FixFlow AI presents one validated, read-only diagnostic test at a time. It never runs code on the remote machine—it empowers the human technician with exact commands, risk ratings, and expected outputs."*
+- **Actions**:
+  1. Inspect the first test: **"Verify VPN Virtual Adapter IP Configuration"**.
+  2. Point out the copyable PowerShell command (`Get-NetIPAddress`), the safety rating (`SAFE_READ_ONLY`), and rollback instructions.
+  3. Select outcome: **"Passed"** and click **"Record Result"**.
+  4. Next test: **"Test Path MTU & Fragmentation"** (`ping -f -l 1472 10.200.4.50`).
+  5. Select outcome: **"Passed"** (rules out MTU black hole).
+  6. Next test: **"Audit Split-Tunnel Routing Table"** (`route print`).
+  7. Select outcome: **"Failed"** (route for `10.200.4.0/24` is missing from the table).
+  8. Click the **"Decision Tree"** tab in the center console: Show how the MTU hypothesis was refuted while the Missing Route hypothesis reached **95% Confidence (Root Cause Identified)**.
 
 ---
 
-### Step 4: Visual Investigation Tree & Evidence Locker (2:00 - 2:30)
-1. Direct the judges' attention to the **Interactive Investigation Tree**:
-   - Show how the root node splits into Networking, DNS, and Service branches.
-   - Show how the *Postgres Service Down* hypothesis was pruned and marked **Refuted** with a red cross.
-   - Show how the *Split-Brain DNS* and *MTU Black Hole* nodes turned **Green / Confirmed** with attached evidence pills.
-2. Click any node in the tree:
-   - A modal or side drawer displays the exact terminal evidence and timestamp that proved or disproved that branch.
+### Act 4: Agent Mode — Bounded Planning & Approval Gating (Minute 3:00 - 4:00)
+- **Narrative**: *"What if the technician prefers the AI to plan the entire investigation autonomously? We switch to Agent Mode—with strict enterprise guardrails."*
+- **Actions**:
+  1. In the workbench header, toggle **Mode** from `Guided` to `Agent`.
+  2. Click **"Propose Agent Diagnostic Plan"**.
+  3. Show the bounded plan:
+     - Strictly capped at **6 steps**.
+     - Tools restricted to the server-side **Tool Allowlist**.
+     - Session budget tracked.
+  4. Highlight the **Human Approval Gate**: Show how elevated probes (such as port sweeps or deep event log queries) require explicit operator confirmation before execution.
 
 ---
 
-### Step 5: Remediation Deck, Post-Mortem & PDF Export (2:30 - 3:00)
-1. Scroll down to the **Remediation Action Deck**:
-   - Display the two verified remediation actions.
-   - **Action 1:** Update client `.conf` with `DNS = 10.50.0.10, corp.internal`.
-   - **Action 2:** Set interface MTU to 1420: `netsh interface ipv4 set subinterface "WG0" mtu=1420 store=persistent`.
-   - Highlight Safety Policy: **Pre-flight check command**, **Rollback command**, and **Blast Radius (User)** are displayed for each action.
-2. Click **"Generate Incident Post-Mortem Report"**:
-   - Navigates to `/incident/[id]/report`.
-   - Show the executive summary, 5-whys RCA breakdown, evidence chronology, and prevention recommendations.
-3. Click **"Download Post-Mortem PDF"**:
-   - Clean, branded, print-ready Post-Mortem PDF generated directly in browser.
-4. **Offline & Persistence Proof:**
-   - Hit browser **Refresh (F5)**.
-   - Show that the entire incident state, evidence locker, and tree are restored instantly from **IndexedDB**.
-   - Open the **Incident History Drawer** to show multiple past incidents saved locally.
+### Act 5: Executive Post-Mortem & Vector PDF Export (Minute 4:00 - 5:00)
+- **Narrative**: *"Once an incident is resolved, management and auditors need a clean RCA report. FixFlow AI generates a compliant post-mortem that strictly separates verified facts from unverified suggestions."*
+- **Actions**:
+  1. Click **"Generate Final Report"** or navigate to `/incident/[id]/report`.
+  2. Point out the **Truth-in-Reporting Invariants**:
+     - Verified Findings list only tests with confirmed terminal telemetry.
+     - Unobserved metrics are clearly flagged as `[Unknown / Telemetry Not Recorded]`, never hallucinated.
+     - 5-Whys causal progression is automatically structured.
+  3. Click **"Edit Post-Mortem"** to demonstrate technician sign-off notes.
+  4. Click the cyan **"Print / Save as PDF"** button (or press `Ctrl+P`).
+  5. Show the clean, print-optimized executive vector PDF ready for leadership sign-off.
 
 ---
 
-## 4. Anticipated Judge Questions & Bulletproof Answers
+## 3. Evaluator Verification Matrix
 
-**Q1: "Does the AI execute terminal commands automatically on my computer?"**  
-*Answer:* "Never. Section 2.1 of our Safety Policy strictly enforces zero autonomous shell execution. FixFlow AI generates safe, syntax-highlighted commands with pre-flight and rollback instructions for human review and execution. Built-in tools run in safe browser/Node parsers without spawning host shells."
-
-**Q2: "What happens if the LLM hallucinates or returns bad JSON?"**  
-*Answer:* "All model output is governed by strict Zod schema validation and structured JSON decoding. If the model emits malformed data, our self-healing parser catches it, flags the error in the UI without crashing, and allows the operator to continue seamlessly in guided or deterministic mode."
-
-**Q3: "How does FixFlow AI differ from ChatGPT or Claude?"**  
-*Answer:* "Generic chatbots are unstructured text streams with no concept of evidence state. FixFlow AI is a dedicated IT workbench: it separates hypotheses from verified facts, maintains a visual investigation graph, enforces a bounded agent loop, supports Bayesian confidence ranking, and produces compliant post-mortem documentation."
+| Evaluation Criterion | What to Test | Expected Outcome |
+| :--- | :--- | :--- |
+| **Zero-Key Offline Operation** | Disconnect internet or leave `GEMINI_API_KEY` blank. | App runs with 100% functionality; UI displays `deterministic_fallback` badges. |
+| **Tool Sandboxing & Safety** | Inspect command recommendations across all 5 scenarios. | 100% read-only probes (`Resolve-DnsName`, `ping`, `Get-NetRoute`, etc.). No destructive commands (`rm`, `reboot`). |
+| **Inventory & Dependency Context** | View `/dependency-map` and link assets in `/incident/new`. | Diagnostic steps incorporate real asset names, IPs, and upstream relationships. |
+| **Bounded Agent Execution** | Request an Agent plan in Agent Mode. | Plan contains $\le 6$ steps; tools match allowlist; requires approval for elevated probes. |
+| **Print / PDF Quality** | Trigger print on `/incident/[id]/report`. | High-contrast, pure-white background, black text, no sidebar, clean pagination. |
