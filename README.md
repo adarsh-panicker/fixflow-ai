@@ -6,6 +6,15 @@ FixFlow AI is an inventory-aware, AI-assisted IT troubleshooting workbench built
 
 ## Key Highlights
 
+- **Multi-User Workspaces & Role-Based Access Control (RBAC)**:
+  - Local-first authentication powered by Auth.js (`next-auth`) and signed HTTP-only JWT sessions.
+  - Strict tenancy isolation across CMDB assets, dependency maps, ICMP monitoring agents, incidents, and Knowledge Base articles.
+  - Server-enforced permissions for 4 discrete roles: **Owner**, **Admin**, **IT Support**, and **Viewer**.
+  - Local-first onboarding & password recovery: zero external email dependencies; single-use tokens generated and presented directly in console.
+  - **Default Administrator Credentials**:
+    - **Username**: `Admin` (or `admin@fixflow.ai`)
+    - **Password**: `Flexflow@i`
+    - **Role**: `OWNER` of `Corporate Enterprise Production` (`ws-default`)
 - **Inventory-Grounded Diagnostics**: Diagnostic tests reference the actual names, IP addresses, operating systems, and upstream relationships (`depends_on`, `hosted_on`, `routes_through`, `authenticates_against`) of registered enterprise assets.
 - **Dual Diagnostic Modes**:
   - **Guided Mode**: Adaptive, step-by-step diagnostic test runner with copyable read-only commands, safety risk ratings, and manual result entry.
@@ -100,7 +109,7 @@ FixFlow AI supports server-side reasoning via the official Google Gen AI SDK (`@
    ```bash
    npm test
    ```
-   All 77 unit and integration tests run deterministically offline across 32 test suites.
+   All 110 unit, integration, RBAC, and workspace isolation tests run deterministically offline across 39 test suites.
 
 6. **Run Local Infrastructure Monitoring Agent**:
    ```powershell

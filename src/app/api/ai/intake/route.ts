@@ -4,11 +4,14 @@ import { GeminiProviderAdapter } from '@/lib/ai/geminiAdapter';
 import { AssetService } from '@/lib/services/assetService';
 import { DiagnosticEngine } from '@/lib/engine/diagnosticEngine';
 import { MonitoringService } from '@/lib/services/monitoringService';
+import { getAuthorizedWorkspaceContext } from '@/lib/auth/workspaceContext';
 
 export async function POST(request: NextRequest) {
   try {
+    const context = await getAuthorizedWorkspaceContext(request, 'incidents:write');
     const body = await request.json();
-    const { title, rawDescription, targetAssetId, workspaceId = 'ws-default' } = body;
+    const { title, rawDescription, targetAssetId } = body;
+    const workspaceId = context.workspaceId;
 
     if (!title || !rawDescription) {
       return NextResponse.json(

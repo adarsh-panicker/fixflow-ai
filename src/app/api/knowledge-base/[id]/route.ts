@@ -1,6 +1,7 @@
 // src/app/api/knowledge-base/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { KnowledgeBaseService } from '@/lib/services/knowledgeBaseService';
+import { getAuthorizedWorkspaceContext } from '@/lib/auth/workspaceContext';
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -9,10 +10,9 @@ interface Params {
 export async function GET(request: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get('workspaceId') || 'ws-default';
+    const context = await getAuthorizedWorkspaceContext(request, 'knowledge:read');
 
-    const article = await KnowledgeBaseService.getArticleById(id, workspaceId);
+    const article = await KnowledgeBaseService.getArticleById(id, context.workspaceId);
 
     if (!article) {
       return NextResponse.json(
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     console.error('Error fetching knowledge article:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to fetch article' },
-      { status: 500 }
+      { status: error.statusCode || 500 }
     );
   }
 }
@@ -37,11 +37,10 @@ export async function GET(request: NextRequest, { params }: Params) {
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get('workspaceId') || 'ws-default';
+    const context = await getAuthorizedWorkspaceContext(request, 'knowledge:write');
     const body = await request.json();
 
-    const article = await KnowledgeBaseService.updateArticle(id, body, workspaceId);
+    const article = await KnowledgeBaseService.updateArticle(id, body, context.workspaceId);
 
     return NextResponse.json({
       success: true,
@@ -49,7 +48,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     });
   } catch (error: any) {
     console.error('Error updating knowledge article:', error);
-    const status = error.name === 'ZodError' ? 400 : 422;
+    const status = error.statusCode || (error.name === 'ZodError' ? 400 : 422);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to update article' },
       { status }
@@ -60,10 +59,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get('workspaceId') || 'ws-default';
+    const context = await getAuthorizedWorkspaceContext(request, 'knowledge:archive');
 
-    const article = await KnowledgeBaseService.archiveArticle(id, workspaceId);
+    const article = await KnowledgeBaseService.archiveArticle(id, context.workspaceId);
 
     return NextResponse.json({
       success: true,
@@ -74,7 +72,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     console.error('Error archiving knowledge article:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to archive article' },
-      { status: 500 }
+      { status: error.statusCode || 500 }
     );
   }
 }

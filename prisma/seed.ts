@@ -1,5 +1,6 @@
 // prisma/seed.ts
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -19,7 +20,124 @@ export async function seedDatabase() {
 
   console.log(`Workspace ready: ${workspace.name} (${workspace.id})`);
 
+  // 1b. Seed Initial Users and Workspace Memberships
+  // Default Admin credentials as requested: Username = Admin, Password = Flexflow@i
+  const adminPasswordHash = await bcrypt.hash('Flexflow@i', 10);
+  const techPasswordHash = await bcrypt.hash('Flexflow@i', 10);
+  const viewerPasswordHash = await bcrypt.hash('Flexflow@i', 10);
+  const leadPasswordHash = await bcrypt.hash('Flexflow@i', 10);
+
+  const adminUser = await prisma.userProfile.upsert({
+    where: { email: 'admin@fixflow.ai' },
+    update: {
+      username: 'Admin',
+      name: 'Admin (System Administrator)',
+      passwordHash: adminPasswordHash,
+    },
+    create: {
+      id: 'usr-admin-01',
+      username: 'Admin',
+      email: 'admin@fixflow.ai',
+      name: 'Admin (System Administrator)',
+      passwordHash: adminPasswordHash,
+      emailVerified: new Date(),
+    },
+  });
+
+  const leadAdminUser = await prisma.userProfile.upsert({
+    where: { email: 'lead@fixflow.ai' },
+    update: {
+      username: 'LeadAdmin',
+      passwordHash: leadPasswordHash,
+    },
+    create: {
+      id: 'usr-lead-01',
+      username: 'LeadAdmin',
+      email: 'lead@fixflow.ai',
+      name: 'Jordan Hayes (Admin)',
+      passwordHash: leadPasswordHash,
+      emailVerified: new Date(),
+    },
+  });
+
+  const techUser = await prisma.userProfile.upsert({
+    where: { email: 'tech@fixflow.ai' },
+    update: {
+      username: 'Technician',
+      passwordHash: techPasswordHash,
+    },
+    create: {
+      id: 'usr-tech-01',
+      username: 'Technician',
+      email: 'tech@fixflow.ai',
+      name: 'Sam Chen (IT Support)',
+      passwordHash: techPasswordHash,
+      emailVerified: new Date(),
+    },
+  });
+
+  const viewerUser = await prisma.userProfile.upsert({
+    where: { email: 'auditor@fixflow.ai' },
+    update: {
+      username: 'Auditor',
+      passwordHash: viewerPasswordHash,
+    },
+    create: {
+      id: 'usr-viewer-01',
+      username: 'Auditor',
+      email: 'auditor@fixflow.ai',
+      name: 'Morgan Taylor (Viewer)',
+      passwordHash: viewerPasswordHash,
+      emailVerified: new Date(),
+    },
+  });
+
+  // Assign memberships in default workspace
+  await prisma.workspaceMembership.upsert({
+    where: { workspaceId_userId: { workspaceId: workspace.id, userId: adminUser.id } },
+    update: { role: 'OWNER' },
+    create: {
+      workspaceId: workspace.id,
+      userId: adminUser.id,
+      role: 'OWNER',
+    },
+  });
+
+  await prisma.workspaceMembership.upsert({
+    where: { workspaceId_userId: { workspaceId: workspace.id, userId: leadAdminUser.id } },
+    update: { role: 'ADMIN' },
+    create: {
+      workspaceId: workspace.id,
+      userId: leadAdminUser.id,
+      role: 'ADMIN',
+    },
+  });
+
+  await prisma.workspaceMembership.upsert({
+    where: { workspaceId_userId: { workspaceId: workspace.id, userId: techUser.id } },
+    update: { role: 'SUPPORT' },
+    create: {
+      workspaceId: workspace.id,
+      userId: techUser.id,
+      role: 'SUPPORT',
+    },
+  });
+
+  await prisma.workspaceMembership.upsert({
+    where: { workspaceId_userId: { workspaceId: workspace.id, userId: viewerUser.id } },
+    update: { role: 'VIEWER' },
+    create: {
+      workspaceId: workspace.id,
+      userId: viewerUser.id,
+      role: 'VIEWER',
+    },
+  });
+
+  console.log('Seeded 4 default users with OWNER, ADMIN, SUPPORT, and VIEWER roles.');
+
   // 2. Clear existing demo assets and relationships for idempotency
+  await prisma.workspaceAuditEvent.deleteMany({ where: { workspaceId: workspace.id } });
+  await prisma.workspaceInvitation.deleteMany({ where: { workspaceId: workspace.id } });
   await prisma.monitoringAuditEvent.deleteMany({ where: { workspaceId: workspace.id } });
   await prisma.monitoringCheckResult.deleteMany({ where: { workspaceId: workspace.id } });
   await prisma.availabilityIncident.deleteMany({ where: { workspaceId: workspace.id } });

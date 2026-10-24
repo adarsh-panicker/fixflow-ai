@@ -1,16 +1,18 @@
 // src/app/api/assets/import-commit/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { AssetService } from '@/lib/services/assetService';
+import { getAuthorizedWorkspaceContext } from '@/lib/auth/workspaceContext';
 
 export async function POST(request: NextRequest) {
   try {
-    const { rows, workspaceId = 'ws-default', onDuplicate = 'skip' } = await request.json();
+    const context = await getAuthorizedWorkspaceContext(request, 'assets:import');
+    const { rows, onDuplicate = 'skip' } = await request.json();
 
     if (!Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json({ success: false, error: 'Rows array is required' }, { status: 400 });
     }
 
-    const result = await AssetService.commitCsvImport(workspaceId, rows, { onDuplicate });
+    const result = await AssetService.commitCsvImport(context.workspaceId, rows, { onDuplicate });
 
     return NextResponse.json({
       success: true,
@@ -21,7 +23,7 @@ export async function POST(request: NextRequest) {
     console.error('CSV commit error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to commit import' },
-      { status: 500 }
+      { status: error.statusCode || 500 }
     );
   }
 }

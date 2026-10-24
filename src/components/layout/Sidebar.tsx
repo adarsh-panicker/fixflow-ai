@@ -13,7 +13,8 @@ import {
   Settings,
   PlusCircle,
   Activity,
-  BookOpen
+  BookOpen,
+  Users
 } from 'lucide-react';
 
 export interface SidebarProps {
@@ -69,6 +70,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = true, onClose }) => {
       href: '/investigations',
       icon: History,
       active: pathname === '/investigations',
+    },
+    {
+      label: 'Workspace Members',
+      href: '/members',
+      icon: Users,
+      active: pathname === '/members',
     },
     {
       label: 'Settings',

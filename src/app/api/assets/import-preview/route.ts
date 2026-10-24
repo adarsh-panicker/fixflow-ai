@@ -2,18 +2,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { CsvImportService } from '@/lib/services/csvImportService';
+import { getAuthorizedWorkspaceContext } from '@/lib/auth/workspaceContext';
 
 export async function POST(request: NextRequest) {
   try {
-    const { csvText, workspaceId = 'ws-default', columnMapping } = await request.json();
+    const context = await getAuthorizedWorkspaceContext(request, 'assets:import');
+    const { csvText, columnMapping } = await request.json();
 
     if (!csvText || typeof csvText !== 'string' || !csvText.trim()) {
       return NextResponse.json({ success: false, error: 'CSV text content is required' }, { status: 400 });
     }
 
-    // Load existing assets in workspace for duplicate detection
+    // Load existing assets in authorized workspace for duplicate detection
     const existingAssets = await prisma.asset.findMany({
-      where: { workspaceId },
+      where: { workspaceId: context.workspaceId },
       select: { id: true, assetTag: true, hostname: true, ipAddress: true },
     });
 
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
     console.error('CSV preview error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to process CSV preview' },
-      { status: 500 }
+      { status: error.statusCode || 500 }
     );
   }
 }

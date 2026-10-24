@@ -16,9 +16,13 @@ model Workspace {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  assets        Asset[]
-  relationships AssetRelationship[]
-  incidents     Incident[]
+  memberships           WorkspaceMembership[]
+  invitations           WorkspaceInvitation[]
+  workspaceAuditEvents  WorkspaceAuditEvent[]
+
+  assets                Asset[]
+  relationships         AssetRelationship[]
+  incidents             Incident[]
 
   monitoringAgents      MonitoringAgent[]
   monitoringConfigs     AssetMonitoringConfiguration[]
@@ -390,4 +394,95 @@ model KnowledgeArticle {
   @@index([status])
   @@index([assetType])
   @@index([normalizedError])
+}
+
+model UserProfile {
+  id            String    @id @default(cuid())
+  username      String?   @unique
+  email         String    @unique
+  name          String
+  passwordHash  String?
+  avatarUrl     String?
+  emailVerified DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  memberships     WorkspaceMembership[]
+  sentInvitations WorkspaceInvitation[] @relation("SentInvitations")
+  auditEvents     WorkspaceAuditEvent[]
+  passwordResets  PasswordResetToken[]
+
+  @@index([username])
+  @@index([email])
+}
+
+model WorkspaceMembership {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        String   @default("SUPPORT") // OWNER, ADMIN, SUPPORT, VIEWER
+  joinedAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([role])
+}
+
+model WorkspaceInvitation {
+  id          String    @id @default(cuid())
+  workspaceId String
+  email       String
+  role        String    @default("SUPPORT") // ADMIN, SUPPORT, VIEWER
+  tokenHash   String    @unique
+  invitedById String
+  status      String    @default("PENDING") // PENDING, ACCEPTED, REVOKED, EXPIRED
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy   UserProfile @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([email])
+  @@index([status])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+model WorkspaceAuditEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String?
+  actorEmail  String
+  eventType   String   // AUTH_LOGIN, AUTH_LOGOUT, WORKSPACE_CREATED, INVITATION_CREATED, INVITATION_ACCEPTED, INVITATION_REVOKED, MEMBER_ADDED, MEMBER_REMOVED, ROLE_CHANGED, OWNERSHIP_TRANSFERRED, AGENT_REGISTERED, AGENT_REVOKED, KB_ARTICLE_VERIFIED, KB_ARTICLE_ARCHIVED
+  targetType  String?  // USER, INVITATION, ASSET, AGENT, KB_ARTICLE
+  targetId    String?
+  metadata    String?  // JSON string
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor       UserProfile? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([eventType])
+  @@index([createdAt])
 }
